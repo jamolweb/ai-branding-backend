@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Post,
   Req,
+  Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
@@ -46,14 +47,25 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthCallback(@Req() req) {
-    return req.user;
+  async googleAuthCallback(@Req() req, @Res() res) {
+    const { user, tokens } = await this.authService.validateOAuthUser(
+      req.user.email,
+      req.user.googleId,
+      req.user.name,
+    );
+
+    // Redirect to frontend with tokens
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    return res.redirect(
+      `${frontendUrl}/dashboard?` +
+        `accessToken=${tokens.accessToken}&` +
+        `refreshToken=${tokens.refreshToken}`,
+    );
   }
 
   @Post('refresh')
   @UseGuards(JwtAuthGuard)
   async refresh(@Req() req) {
-    console.log('refresh', req.headers);
     const refreshToken = req.headers.authorization?.split(' ')[1];
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');

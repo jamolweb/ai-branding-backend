@@ -25,11 +25,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback,
   ) {
     const { emails, displayName, id } = profile;
-    const user = await this.authService.validateOAuthUser(
-      emails[0].value,
-      id,
-      displayName,
-    );
+    const user = {
+      email: emails[0].value,
+      name: displayName,
+      googleId: id,
+    };
     done(null, user);
   }
 }
