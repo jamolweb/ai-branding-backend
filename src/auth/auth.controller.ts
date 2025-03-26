@@ -10,6 +10,8 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
@@ -17,7 +19,11 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private jwtService: JwtService,
+    private configService: ConfigService,
+  ) {}
 
   @Post('register')
   async register(@Body() dto: RegisterDto) {
@@ -64,18 +70,39 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @UseGuards(JwtAuthGuard)
   async refresh(@Req() req) {
-    const refreshToken = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    const refreshToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : authHeader;
+
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
-    return this.authService.refreshTokens(req.user.id, refreshToken);
+
+    // Extract user ID from the refresh token
+    try {
+      const decoded = await this.jwtService.verifyAsync(refreshToken, {
+        secret: this.configService.get('JWT_REFRESH_SECRET'),
+      });
+      return this.authService.refreshTokens(decoded.sub, refreshToken);
+    } catch (error) {
+      console.error('Token verification error:', error);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
   }
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   async getProfile(@Req() req) {
     return req.user;
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(@Req() req) {
+    await this.authService.logout(req.user.id);
+    return { message: 'Logged out successfully' };
   }
 }
