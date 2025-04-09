@@ -14,7 +14,11 @@ model User {
   googleId     String? @unique
   name         String?
   refreshToken String?
-  role         Role    @default(USER)
+
+  credits Int @default(0)
+
+  role  Role   @default(USER)
+  logos Logo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -25,4 +29,55 @@ model User {
 enum Role {
   USER
   ADMIN
+}
+
+model Logo {
+  id       String     @id @default(uuid())
+  prompt   String     @db.Text
+  imageUrl String
+  status   LogoStatus @default(COMPLETED)
+
+  generationTime Int? // Time in ms it took to generate
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // For logo customization
+  category String?
+  tags     String[] @default([])
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("logos")
+}
+
+enum LogoStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Optional - for tracking generation jobs
+model LogoGenerationJob {
+  id        String    @id @default(uuid())
+  prompt    String    @db.Text
+  status    JobStatus @default(PENDING)
+  logoId    String?
+  userId    String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  error     String?
+
+  @@map("logo_generation_jobs")
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }

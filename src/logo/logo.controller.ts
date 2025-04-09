@@ -4,6 +4,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -26,8 +27,8 @@ export class LogoController {
 
   @Post('generate')
   @HttpCode(HttpStatus.OK)
-  async generateLogo(@Body('prompt') prompt: string) {
-    const images = await this.openaiService.generateLogo(prompt);
-    return { images };
+  async generateLogo(@Body('prompt') prompt: string, @Req() req: any) {
+    const result = await this.openaiService.generateLogo(prompt, req.user.id);
+    return result;
   }
 }
