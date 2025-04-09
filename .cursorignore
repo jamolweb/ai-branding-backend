@@ -1,0 +1,7 @@
+/.env
+/node_modules
+/dist
+/build
+/logs
+/tmp
+/uploads

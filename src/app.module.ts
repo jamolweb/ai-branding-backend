@@ -3,18 +3,19 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { DeepseekModule } from './deepseek/deepseek.module';
-import { PrismaModule } from './prisma/prisma.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { LogoModule } from './logo/logo.module';
+import { OpenaiModule } from './openai/openai.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: ['.env', '.env.local'],
       isGlobal: true,
     }),
     AuthModule,
-    PrismaModule,
-    DeepseekModule,
+    LogoModule,
+    CloudinaryModule,
+    OpenaiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

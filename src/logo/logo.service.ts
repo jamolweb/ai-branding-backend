@@ -1,12 +1,18 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { EnhancePromptDto } from './dto/enhance-prompt.dto';
 
 @Injectable()
-export class DeepseekService {
-  private readonly API_TIMEOUT = 10000; // 10 seconds timeout
+export class LogoService {
+  private readonly API_TIMEOUT = 30000; // 30 seconds timeout for DALL-E
+  private readonly DALLE_API_URL =
+    'https://api.openai.com/v1/images/generations';
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   async enhancePrompt(dto: EnhancePromptDto): Promise<string> {
     const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
@@ -73,6 +79,65 @@ export class DeepseekService {
         `Failed to enhance prompt: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  async generateLogo(prompt: string): Promise<{ images: string[] }> {
+    const apiKey = this.configService.get<string>('DALLE_API_KEY');
+    if (!apiKey) {
+      throw new Error('DALLE_API_KEY is not configured');
+    }
+
+    try {
+      // Generate a single logo
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.API_TIMEOUT);
+
+      const response = await fetch(this.DALLE_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt: prompt,
+          n: 1, // Generate exactly one logo
+          size: '1024x1024',
+          quality: 'standard',
+          style: 'vivid',
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('DALL-E API Error:', errorData);
+        throw new Error(
+          `DALL-E API error: ${errorData.error?.message || response.statusText}`,
+        );
+      }
+
+      const data = await response.json();
+      if (!data.data || !data.data[0]?.url) {
+        throw new Error('Invalid response format from DALL-E API');
+      }
+
+      // Download the image from DALL-E URL
+      const imageResponse = await fetch(data.data[0].url);
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+
+      // Upload to Cloudinary
+      const cloudinaryUrl =
+        await this.cloudinaryService.uploadImage(base64Image);
+
+      return { images: [cloudinaryUrl] };
+    } catch (error) {
+      console.error('Logo Generation Error:', error);
+      throw error;
     }
   }
 }
