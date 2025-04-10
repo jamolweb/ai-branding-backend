@@ -20,45 +20,57 @@ export class GeminiService {
   ): Promise<{ images: string[]; jobId: string }> {
     const startTime = Date.now();
     try {
-      console.log('Starting logo generation process...');
       const generationStartTime = Date.now();
 
-      // Generate image using Gemini
-      console.log('Generating image with Gemini...');
-      const response = await this.gemini.models.generateContent({
+      const model = this.gemini.models;
+      const response = await model.generateContent({
         model: 'gemini-2.0-flash-exp-image-generation',
-        contents: `${prompt}`,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: `Generate a professional logo design with the following description: ${prompt}. The logo should be clean, modern, and suitable for business use.`,
+              },
+            ],
+          },
+        ],
         config: {
           responseModalities: ['Text', 'Image'],
         },
       });
 
-      if (!response.candidates?.[0]?.content?.parts) {
-        throw new Error('No content generated');
+      if (!response?.candidates?.[0]?.content) {
+        throw new Error(
+          'Invalid response structure: No candidates or content found',
+        );
       }
 
-      let imageBase64;
-      let generationText;
+      const content = response.candidates[0].content;
 
-      for (const part of response.candidates[0].content.parts) {
-        if (part.text) {
-          generationText = part.text;
-          console.log('Generation text:', generationText);
-        } else if (part.inlineData?.data) {
+      let imageBase64 = null;
+
+      // Check if content is an array or object
+      const parts = Array.isArray(content) ? content : content.parts;
+      if (!parts) {
+        throw new Error('No parts found in response content');
+      }
+
+      for (const part of parts) {
+        if (part.inlineData?.data) {
           imageBase64 = part.inlineData.data;
+          break;
         }
       }
 
       if (!imageBase64) {
-        throw new Error('No image generated');
+        throw new Error('No image data found in response parts');
       }
 
       const imageUrl = `data:image/png;base64,${imageBase64}`;
       const generationEndTime = Date.now();
       const generationTime = generationEndTime - generationStartTime;
-      console.log(`Image generation took ${generationTime / 1000} seconds`);
 
-      // Create a job record in the database
       const job = await this.prisma.logoGenerationJob.create({
         data: {
           prompt,
@@ -68,7 +80,6 @@ export class GeminiService {
         },
       });
 
-      // Start background processing
       this.processBackgroundTasks(
         imageUrl,
         prompt,
@@ -79,14 +90,13 @@ export class GeminiService {
         console.error('Background processing error:', error);
       });
 
-      // Return immediately with the image URL and job ID
       return {
         images: [imageUrl],
         jobId: job.id,
       };
     } catch (error) {
-      const totalTime = Date.now() - startTime;
-      console.error(`Error after ${totalTime / 1000} seconds:`, error);
+      console.error('Gemini API Error:', error);
+      console.error('Error details:', error.response?.data || error.message);
 
       if (error.message?.includes('PERMISSION_DENIED')) {
         throw new HttpException(
@@ -100,13 +110,13 @@ export class GeminiService {
         error.message?.includes('404')
       ) {
         throw new HttpException(
-          'The requested model is not available. Please try again later.',
+          'The image generation model is not available. Please try again later.',
           HttpStatus.SERVICE_UNAVAILABLE,
         );
       }
 
       throw new HttpException(
-        'Failed to generate logo. Please try again.',
+        `Failed to generate logo: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -120,35 +130,10 @@ export class GeminiService {
     generationTime: number,
   ): Promise<void> {
     try {
-      console.log('Starting background processing...');
-
-      // Download the image
-      console.log('Processing image...');
-      const downloadStartTime = Date.now();
-
-      // The image is already in base64 format, just need to extract the data part
       const base64Data = imageUrl.split(',')[1];
       const buffer = Buffer.from(base64Data, 'base64');
 
-      const downloadEndTime = Date.now();
-      console.log(
-        `Image processing took ${(downloadEndTime - downloadStartTime) / 1000} seconds`,
-      );
-
-      // Upload to Cloudinary
-      console.log('Uploading to Cloudinary...');
-      const uploadStartTime = Date.now();
-
       const cloudinaryUrl = await this.cloudinaryService.uploadImage(imageUrl);
-
-      const uploadEndTime = Date.now();
-      console.log(
-        `Cloudinary upload took ${(uploadEndTime - uploadStartTime) / 1000} seconds`,
-      );
-
-      // Save to database
-      console.log('Saving to database...');
-      const dbStartTime = Date.now();
 
       const logo = await this.prisma.logo.create({
         data: {
@@ -160,12 +145,6 @@ export class GeminiService {
         },
       });
 
-      const dbEndTime = Date.now();
-      console.log(
-        `Database save took ${(dbEndTime - dbStartTime) / 1000} seconds`,
-      );
-
-      // Update job status
       await this.prisma.logoGenerationJob.update({
         where: { id: jobId },
         data: {
@@ -174,12 +153,8 @@ export class GeminiService {
           logoId: logo.id,
         },
       });
-
-      console.log('Background processing completed successfully');
     } catch (error) {
       console.error('Background processing error:', error);
-
-      // Update job status to failed
       await this.prisma.logoGenerationJob.update({
         where: { id: jobId },
         data: {
