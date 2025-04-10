@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { OpenAI } from 'openai';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
@@ -26,14 +26,13 @@ export class OpenaiService {
       console.log('Starting DALL-E image generation...');
       const dalleStartTime = Date.now();
 
-      // Use DALL-E 2 instead of DALL-E 3 for faster generation
-      // Reduce image size to 512x512 for faster processing
       const response = await this.openai.images.generate({
-        model: 'dall-e-2', // DALL-E 2 is much faster than DALL-E 3
+        model: 'dall-e-3',
         prompt: prompt,
         n: 1,
-        size: '512x512', // Smaller size for faster generation and download
+        size: '1024x1024', // DALL-E 3 only supports: 1024x1024, 1792x1024, or 1024x1792
         quality: 'standard',
+        style: 'vivid',
       });
 
       const dalleEndTime = Date.now();
@@ -71,7 +70,28 @@ export class OpenaiService {
     } catch (error) {
       const totalTime = Date.now() - startTime;
       console.error(`Error after ${totalTime / 1000} seconds:`, error);
-      throw error;
+
+      // Handle specific OpenAI errors
+      if (error.error?.type === 'invalid_request_error') {
+        throw new HttpException(
+          error.error.message || 'Invalid request to OpenAI API',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // Handle rate limits
+      if (error.status === 429) {
+        throw new HttpException(
+          'Rate limit exceeded. Please try again later.',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      // Handle other errors
+      throw new HttpException(
+        'Failed to generate logo. Please try again.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
