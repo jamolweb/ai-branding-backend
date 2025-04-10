@@ -1,20 +1,17 @@
+import { GoogleGenAI } from '@google/genai';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import axios from 'axios';
-import { OpenAI } from 'openai';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
-export class OpenaiService {
-  private openai: OpenAI;
+export class GeminiService {
+  private gemini: GoogleGenAI;
 
   constructor(
     private cloudinaryService: CloudinaryService,
     private prisma: PrismaService,
   ) {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    this.gemini = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
   }
 
   async generateLogo(
@@ -23,23 +20,43 @@ export class OpenaiService {
   ): Promise<{ images: string[]; jobId: string }> {
     const startTime = Date.now();
     try {
-      console.log('Starting DALL-E image generation...');
-      const dalleStartTime = Date.now();
+      console.log('Starting logo generation process...');
+      const generationStartTime = Date.now();
 
-      const response = await this.openai.images.generate({
-        model: 'dall-e-3',
-        prompt: prompt,
-        n: 1,
-        size: '1024x1024', // DALL-E 3 only supports: 1024x1024, 1792x1024, or 1024x1792
-        quality: 'standard',
-        style: 'vivid',
+      // Generate image using Gemini
+      console.log('Generating image with Gemini...');
+      const response = await this.gemini.models.generateContent({
+        model: 'gemini-2.0-flash-exp-image-generation',
+        contents: `${prompt}`,
+        config: {
+          responseModalities: ['Text', 'Image'],
+        },
       });
 
-      const dalleEndTime = Date.now();
-      const generationTime = dalleEndTime - dalleStartTime;
-      console.log(`DALL-E generation took ${generationTime / 1000} seconds`);
+      if (!response.candidates?.[0]?.content?.parts) {
+        throw new Error('No content generated');
+      }
 
-      const dalleUrl = response.data[0].url;
+      let imageBase64;
+      let generationText;
+
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) {
+          generationText = part.text;
+          console.log('Generation text:', generationText);
+        } else if (part.inlineData?.data) {
+          imageBase64 = part.inlineData.data;
+        }
+      }
+
+      if (!imageBase64) {
+        throw new Error('No image generated');
+      }
+
+      const imageUrl = `data:image/png;base64,${imageBase64}`;
+      const generationEndTime = Date.now();
+      const generationTime = generationEndTime - generationStartTime;
+      console.log(`Image generation took ${generationTime / 1000} seconds`);
 
       // Create a job record in the database
       const job = await this.prisma.logoGenerationJob.create({
@@ -53,7 +70,7 @@ export class OpenaiService {
 
       // Start background processing
       this.processBackgroundTasks(
-        dalleUrl,
+        imageUrl,
         prompt,
         userId,
         job.id,
@@ -62,32 +79,32 @@ export class OpenaiService {
         console.error('Background processing error:', error);
       });
 
-      // Return immediately with the DALL-E URL and job ID
+      // Return immediately with the image URL and job ID
       return {
-        images: [dalleUrl],
+        images: [imageUrl],
         jobId: job.id,
       };
     } catch (error) {
       const totalTime = Date.now() - startTime;
       console.error(`Error after ${totalTime / 1000} seconds:`, error);
 
-      // Handle specific OpenAI errors
-      if (error.error?.type === 'invalid_request_error') {
+      if (error.message?.includes('PERMISSION_DENIED')) {
         throw new HttpException(
-          error.error.message || 'Invalid request to OpenAI API',
-          HttpStatus.BAD_REQUEST,
+          'Access to the Gemini API is denied. Please check your API key and permissions.',
+          HttpStatus.FORBIDDEN,
         );
       }
 
-      // Handle rate limits
-      if (error.status === 429) {
+      if (
+        error.message?.includes('not found') ||
+        error.message?.includes('404')
+      ) {
         throw new HttpException(
-          'Rate limit exceeded. Please try again later.',
-          HttpStatus.TOO_MANY_REQUESTS,
+          'The requested model is not available. Please try again later.',
+          HttpStatus.SERVICE_UNAVAILABLE,
         );
       }
 
-      // Handle other errors
       throw new HttpException(
         'Failed to generate logo. Please try again.',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -96,7 +113,7 @@ export class OpenaiService {
   }
 
   private async processBackgroundTasks(
-    dalleUrl: string,
+    imageUrl: string,
     prompt: string,
     userId: string,
     jobId: string,
@@ -105,30 +122,24 @@ export class OpenaiService {
     try {
       console.log('Starting background processing...');
 
-      // Download the image from DALL-E
-      console.log('Downloading image from DALL-E...');
+      // Download the image
+      console.log('Processing image...');
       const downloadStartTime = Date.now();
 
-      const imageResponse = await axios.get(dalleUrl, {
-        responseType: 'arraybuffer',
-        timeout: 5000,
-      });
-      const buffer = Buffer.from(imageResponse.data);
+      // The image is already in base64 format, just need to extract the data part
+      const base64Data = imageUrl.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
 
       const downloadEndTime = Date.now();
       console.log(
-        `Image download took ${(downloadEndTime - downloadStartTime) / 1000} seconds`,
+        `Image processing took ${(downloadEndTime - downloadStartTime) / 1000} seconds`,
       );
-
-      // Convert buffer to base64 string for CloudinaryService
-      const base64Image = `data:image/png;base64,${buffer.toString('base64')}`;
 
       // Upload to Cloudinary
       console.log('Uploading to Cloudinary...');
       const uploadStartTime = Date.now();
 
-      const cloudinaryUrl =
-        await this.cloudinaryService.uploadImage(base64Image);
+      const cloudinaryUrl = await this.cloudinaryService.uploadImage(imageUrl);
 
       const uploadEndTime = Date.now();
       console.log(

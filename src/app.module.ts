@@ -4,8 +4,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { GeminiModule } from './gemini/gemini.module';
 import { LogoModule } from './logo/logo.module';
-import { OpenaiModule } from './openai/openai.module';
 
 @Module({
   imports: [
@@ -15,7 +15,7 @@ import { OpenaiModule } from './openai/openai.module';
     AuthModule,
     LogoModule,
     CloudinaryModule,
-    OpenaiModule,
+    GeminiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

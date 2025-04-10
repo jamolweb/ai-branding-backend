@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { OpenaiService } from '../openai/openai.service';
+import { GeminiService } from '../gemini/gemini.service';
 import { FavoriteLogoDto } from './dto/favorite-logo.dto';
 import { LogoService } from './logo.service';
 
@@ -20,7 +20,7 @@ import { LogoService } from './logo.service';
 export class LogoController {
   constructor(
     private readonly logoService: LogoService,
-    private readonly openaiService: OpenaiService,
+    private readonly geminiService: GeminiService,
   ) {}
 
   @Post('deepseek/make-prompt-better')
@@ -32,7 +32,7 @@ export class LogoController {
   @Post('generate')
   @HttpCode(HttpStatus.OK)
   async generateLogo(@Body('prompt') prompt: string, @Req() req: any) {
-    const result = await this.openaiService.generateLogo(prompt, req.user.id);
+    const result = await this.geminiService.generateLogo(prompt, req.user.id);
     return result;
   }
 
