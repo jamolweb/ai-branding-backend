@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { EnhancePromptDto } from './dto/enhance-prompt.dto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class LogoService {
   constructor(
     private readonly configService: ConfigService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async enhancePrompt(dto: EnhancePromptDto): Promise<string> {
@@ -139,5 +141,104 @@ export class LogoService {
       console.error('Logo Generation Error:', error);
       throw error;
     }
+  }
+
+  // Get user's logos
+  async getUserLogos(userId: string) {
+    return this.prisma.logo.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: { favoritedBy: true },
+        },
+      },
+    });
+  }
+
+  // Get user's favorite logos
+  async getUserFavorites(userId: string) {
+    return this.prisma.favoriteLogo.findMany({
+      where: { userId },
+      include: {
+        logo: {
+          include: {
+            _count: {
+              select: { favoritedBy: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Add logo to favorites
+  async addToFavorites(userId: string, logoId: string) {
+    // Check if logo exists
+    const logo = await this.prisma.logo.findUnique({
+      where: { id: logoId },
+    });
+
+    if (!logo) {
+      throw new HttpException('Logo not found', HttpStatus.NOT_FOUND);
+    }
+
+    try {
+      return await this.prisma.favoriteLogo.create({
+        data: {
+          userId,
+          logoId,
+        },
+        include: {
+          logo: true,
+        },
+      });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw new HttpException(
+          'Logo already in favorites',
+          HttpStatus.CONFLICT,
+        );
+      }
+      throw error;
+    }
+  }
+
+  // Remove logo from favorites
+  async removeFromFavorites(userId: string, logoId: string) {
+    const favorite = await this.prisma.favoriteLogo.findFirst({
+      where: {
+        userId,
+        logoId,
+      },
+    });
+
+    if (!favorite) {
+      throw new HttpException(
+        'Logo not found in favorites',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    await this.prisma.favoriteLogo.delete({
+      where: {
+        id: favorite.id,
+      },
+    });
+
+    return { message: 'Logo removed from favorites' };
+  }
+
+  // Check if a logo is favorited by user
+  async isLogoFavorited(userId: string, logoId: string) {
+    const favorite = await this.prisma.favoriteLogo.findFirst({
+      where: {
+        userId,
+        logoId,
+      },
+    });
+
+    return { isFavorited: !!favorite };
   }
 }
