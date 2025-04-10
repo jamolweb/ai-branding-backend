@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EnhancePromptDto } from './dto/enhance-prompt.dto';
@@ -240,5 +241,60 @@ export class LogoService {
     });
 
     return { isFavorited: !!favorite };
+  }
+
+  // Delete logo from both Cloudinary and database
+  async deleteLogo(userId: string, logoId: string) {
+    // First check if logo exists and belongs to user
+    const logo = await this.prisma.logo.findFirst({
+      where: {
+        id: logoId,
+        userId,
+      },
+    });
+
+    if (!logo) {
+      throw new HttpException(
+        'Logo not found or unauthorized',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    try {
+      // Extract public_id from Cloudinary URL
+      const urlParts = logo.imageUrl.split('/');
+      const filenameWithExtension = urlParts[urlParts.length - 1];
+      const publicId = `logos/${filenameWithExtension.split('.')[0]}`; // Assuming logos folder in Cloudinary
+
+      // Delete from Cloudinary
+      await new Promise((resolve, reject) => {
+        cloudinary.uploader.destroy(publicId, (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        });
+      });
+
+      // Delete all favorite records first (due to foreign key constraints)
+      await this.prisma.favoriteLogo.deleteMany({
+        where: {
+          logoId,
+        },
+      });
+
+      // Delete the logo from database
+      await this.prisma.logo.delete({
+        where: {
+          id: logoId,
+        },
+      });
+
+      return { message: 'Logo deleted successfully' };
+    } catch (error) {
+      console.error('Error deleting logo:', error);
+      throw new HttpException(
+        'Failed to delete logo',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

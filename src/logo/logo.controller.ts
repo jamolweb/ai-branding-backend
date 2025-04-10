@@ -65,4 +65,10 @@ export class LogoController {
   async checkFavoriteStatus(@Param('logoId') logoId: string, @Req() req: any) {
     return this.logoService.isLogoFavorited(req.user.id, logoId);
   }
+
+  @Delete(':logoId')
+  @HttpCode(HttpStatus.OK)
+  async deleteLogo(@Param('logoId') logoId: string, @Req() req: any) {
+    return this.logoService.deleteLogo(req.user.id, logoId);
+  }
 }
