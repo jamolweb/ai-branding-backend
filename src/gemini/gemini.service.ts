@@ -18,7 +18,6 @@ export class GeminiService {
     prompt: string,
     userId: string,
   ): Promise<{ images: string[]; jobId: string }> {
-    const startTime = Date.now();
     try {
       const generationStartTime = Date.now();
 
@@ -50,7 +49,6 @@ export class GeminiService {
 
       let imageBase64 = null;
 
-      // Check if content is an array or object
       const parts = Array.isArray(content) ? content : content.parts;
       if (!parts) {
         throw new Error('No parts found in response content');
@@ -130,9 +128,6 @@ export class GeminiService {
     generationTime: number,
   ): Promise<void> {
     try {
-      const base64Data = imageUrl.split(',')[1];
-      const buffer = Buffer.from(base64Data, 'base64');
-
       const cloudinaryUrl = await this.cloudinaryService.uploadImage(imageUrl);
 
       const logo = await this.prisma.logo.create({
