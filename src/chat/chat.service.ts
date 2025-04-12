@@ -32,7 +32,7 @@ export class ChatService {
     });
   }
 
-  async sendMessage(
+  async *streamMessage(
     userId: string,
     sessionId: string | undefined,
     content: string,
@@ -49,6 +49,15 @@ export class ChatService {
     if (!session) {
       session = await this.createChatSession(userId);
     }
+
+    // Save user message to database
+    await this.prisma.chatMessage.create({
+      data: {
+        sessionId: session.id,
+        role: 'USER',
+        content,
+      },
+    });
 
     // Get chat history for context
     const history = await this.getChatHistory(session.id);
@@ -71,48 +80,56 @@ export class ChatService {
     ];
 
     try {
-      // Call DeepSeek API
+      // Call DeepSeek API with streaming
       const response = await axios.post(
         this.deepseekApiUrl,
         {
           messages,
           model: 'deepseek-chat',
           temperature: 0.7,
+          stream: true,
         },
         {
           headers: {
             Authorization: `Bearer ${this.deepseekApiKey}`,
             'Content-Type': 'application/json',
           },
+          responseType: 'stream',
         },
       );
 
-      const aiResponse = response.data.choices[0].message.content;
-      const tokensUsed = response.data.usage.total_tokens;
+      let fullResponse = '';
+      const stream = response.data;
 
-      // Save both messages to database
-      await this.prisma.$transaction([
-        this.prisma.chatMessage.create({
-          data: {
-            sessionId: session.id,
-            role: 'USER',
-            content,
-          },
-        }),
-        this.prisma.chatMessage.create({
-          data: {
-            sessionId: session.id,
-            role: 'ASSISTANT',
-            content: aiResponse,
-            tokensUsed,
-          },
-        }),
-      ]);
-
-      return {
-        response: aiResponse,
-        sessionId: session.id,
-      };
+      for await (const chunk of stream) {
+        const lines = chunk.toString().split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              // Save the complete response to database
+              await this.prisma.chatMessage.create({
+                data: {
+                  sessionId: session.id,
+                  role: 'ASSISTANT',
+                  content: fullResponse,
+                },
+              });
+              return;
+            }
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices[0]?.delta?.content || '';
+              if (content) {
+                fullResponse += content;
+                yield content;
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
+            }
+          }
+        }
+      }
     } catch (error) {
       throw new HttpException(
         'Failed to get AI response',

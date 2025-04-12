@@ -1,5 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { GetUser } from 'src/auth/decorators/get-user.decorator';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { Response } from 'express';
+import { GetUser } from '../auth/decorators/get-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ChatService } from './chat.service';
 
@@ -12,8 +21,24 @@ export class ChatController {
   async sendMessage(
     @GetUser('id') userId: string,
     @Body() body: { sessionId?: string; message: string },
+    @Res() res: Response,
   ) {
-    return this.chatService.sendMessage(userId, body.sessionId, body.message);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    try {
+      for await (const chunk of this.chatService.streamMessage(
+        userId,
+        body.sessionId,
+        body.message,
+      )) {
+        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      }
+      res.end();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to process message' });
+    }
   }
 
   @Get('sessions')
