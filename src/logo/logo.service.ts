@@ -1,19 +1,16 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EnhancePromptDto } from './dto/enhance-prompt.dto';
 
 @Injectable()
 export class LogoService {
-  private readonly API_TIMEOUT = 30000; // 30 seconds timeout for DALL-E
-  private readonly DALLE_API_URL =
-    'https://api.openai.com/v1/images/generations';
+  private readonly API_TIMEOUT = 30000;
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly cloudinaryService: CloudinaryService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -27,55 +24,47 @@ export class LogoService {
     }
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.API_TIMEOUT);
-
-      const response = await fetch(
+      const response = await axios.post(
         'https://api.deepseek.com/v1/chat/completions',
         {
-          method: 'POST',
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a prompt engineering expert. Enhance the given text to make it a better prompt for AI image generation. Be concise but specific. Keep the response minimalistic to the point.',
+            },
+            {
+              role: 'user',
+              content: dto.text,
+            },
+          ],
+          temperature: 0.5,
+          max_tokens: 150,
+          presence_penalty: 0,
+          frequency_penalty: 0,
+        },
+        {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${apiKey}`,
           },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              {
-                role: 'system',
-                content:
-                  'You are a prompt engineering expert. Enhance the given text to make it a better prompt for AI image generation. Be concise but specific. Keep the response minimalistic to the point.',
-              },
-              {
-                role: 'user',
-                content: dto.text,
-              },
-            ],
-            temperature: 0.5,
-            max_tokens: 150,
-            presence_penalty: 0,
-            frequency_penalty: 0,
-          }),
-          signal: controller.signal,
+          timeout: this.API_TIMEOUT,
         },
       );
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new HttpException(
-          `DeepSeek API error: ${response.statusText}`,
-          HttpStatus.BAD_GATEWAY,
-        );
-      }
-
-      const data = await response.json();
-      return data.choices[0].message.content;
+      return response.data.choices[0].message.content;
     } catch (error) {
-      if (error.name === 'AbortError') {
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNABORTED') {
+          throw new HttpException(
+            'Request timeout: DeepSeek API took too long to respond',
+            HttpStatus.GATEWAY_TIMEOUT,
+          );
+        }
         throw new HttpException(
-          'Request timeout: DeepSeek API took too long to respond',
-          HttpStatus.GATEWAY_TIMEOUT,
+          `DeepSeek API error: ${error.response?.statusText || error.message}`,
+          HttpStatus.BAD_GATEWAY,
         );
       }
       throw new HttpException(
@@ -117,7 +106,6 @@ export class LogoService {
 
   // Add logo to favorites
   async addToFavorites(userId: string, logoId: string) {
-    // Check if logo exists
     const logo = await this.prisma.logo.findUnique({
       where: { id: logoId },
     });
