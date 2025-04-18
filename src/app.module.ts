@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { BrandbookModule } from './brandbook/brandbook.module';
 import { ChatModule } from './chat/chat.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { GeminiModule } from './gemini/gemini.module';
@@ -18,6 +19,7 @@ import { LogoModule } from './logo/logo.module';
     CloudinaryModule,
     GeminiModule,
     ChatModule,
+    BrandbookModule,
   ],
   controllers: [AppController],
   providers: [AppService],
