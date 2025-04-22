@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BrandbookController } from './brandbook.controller';
 import { BrandbookService } from './brandbook.service';
 import { MockContentService } from './services/mock-content.service';
+import { PdfService } from './services/pdf.service';
 import { TemplateService } from './services/template.service';
 
 @Module({
@@ -15,6 +16,7 @@ import { TemplateService } from './services/template.service';
     PrismaService,
     MockContentService,
     TemplateService,
+    PdfService,
   ],
   exports: [BrandbookService],
 })

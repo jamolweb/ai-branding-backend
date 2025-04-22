@@ -37,4 +37,59 @@ export class CloudinaryService {
       throw error;
     }
   }
+
+  async uploadLogo(file: Express.Multer.File): Promise<string> {
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'brandbook/logos',
+            resource_type: 'image',
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          },
+        );
+        uploadStream.end(file.buffer);
+      });
+
+      return (result as any).secure_url;
+    } catch (error) {
+      console.error('Error uploading logo to Cloudinary:', error);
+      throw error;
+    }
+  }
+
+  async uploadPdf(pdfBuffer: Buffer): Promise<string> {
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'brandbook/pdfs',
+            resource_type: 'raw',
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          },
+        );
+        uploadStream.end(pdfBuffer);
+      });
+
+      return (result as any).secure_url;
+    } catch (error) {
+      console.error('Error uploading PDF to Cloudinary:', error);
+      throw error;
+    }
+  }
+
+  async deleteFile(publicId: string): Promise<void> {
+    try {
+      await cloudinary.uploader.destroy(publicId);
+    } catch (error) {
+      console.error('Error deleting file from Cloudinary:', error);
+      throw error;
+    }
+  }
 }

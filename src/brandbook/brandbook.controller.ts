@@ -4,6 +4,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
   Param,
   Patch,
@@ -11,6 +15,7 @@ import {
   Req,
   Res,
   StreamableFile,
+  UnauthorizedException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -26,6 +31,8 @@ import { CreateBrandbookDto } from './dto/create-brandbook.dto';
 @Controller('brandbook')
 @UseGuards(JwtAuthGuard)
 export class BrandbookController {
+  private readonly logger = new Logger(BrandbookController.name);
+
   constructor(private readonly brandbookService: BrandbookService) {}
 
   @Post()
@@ -61,8 +68,57 @@ export class BrandbookController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async deleteBrandbook(@Param('id') id: string, @Req() req: Request) {
-    return this.brandbookService.delete(id, req.user['id']);
+    try {
+      this.logger.debug(`Delete request received for brandbook: ${id}`);
+      this.logger.debug('Request user object:', req.user);
+      this.logger.debug('Request headers:', req.headers);
+
+      if (!id) {
+        throw new BadRequestException('Brandbook ID is required');
+      }
+
+      // Safely extract user ID with type checking
+      const user = req.user as { id: string } | undefined;
+      this.logger.debug('Extracted user:', user);
+
+      if (!user?.id) {
+        this.logger.error('User ID not found in request');
+        throw new UnauthorizedException('User not authenticated properly');
+      }
+
+      try {
+        await this.brandbookService.delete(id, user.id);
+        this.logger.debug(`Successfully deleted brandbook with id: ${id}`);
+      } catch (error) {
+        this.logger.error('Service error:', error);
+        if (error instanceof NotFoundException) {
+          throw error;
+        }
+        throw new BadRequestException(
+          `Failed to delete brandbook: ${error.message}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error('Controller error:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        'An unexpected error occurred while deleting the brandbook',
+      );
+    }
   }
 
   @Patch(':id')
