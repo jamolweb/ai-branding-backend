@@ -27,13 +27,18 @@ import * as path from 'path';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BrandbookService } from './brandbook.service';
 import { CreateBrandbookDto } from './dto/create-brandbook.dto';
+import { GenerateCustomBrandBookDto } from './dto/generate-custom-brandbook.dto';
+import { BrandBookPdfGeneratorService } from './services/brandbook-pdf-generator.service';
 
 @Controller('brandbook')
 @UseGuards(JwtAuthGuard)
 export class BrandbookController {
   private readonly logger = new Logger(BrandbookController.name);
 
-  constructor(private readonly brandbookService: BrandbookService) {}
+  constructor(
+    private readonly brandbookService: BrandbookService,
+    private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
+  ) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('logo'))
@@ -193,6 +198,30 @@ export class BrandbookController {
       return new StreamableFile(file);
     } catch (error) {
       throw new NotFoundException('PDF not found');
+    }
+  }
+
+  @Post('generate-custom')
+  async generateCustomBrandBook(
+    @Body() brandBookData: GenerateCustomBrandBookDto,
+    @Res() res: Response,
+  ) {
+    try {
+      const pdfBuffer =
+        await this.brandBookPdfGeneratorService.generateBrandBook(
+          brandBookData,
+        );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${brandBookData.companyName.replace(/\s+/g, '-').toLowerCase()}-brandbook.pdf"`,
+      );
+
+      res.send(pdfBuffer);
+    } catch (error) {
+      this.logger.error('Error generating custom brand book:', error);
+      throw new InternalServerErrorException('Error generating brand book');
     }
   }
 }

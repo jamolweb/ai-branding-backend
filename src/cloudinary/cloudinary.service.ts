@@ -61,13 +61,20 @@ export class CloudinaryService {
     }
   }
 
-  async uploadPdf(pdfBuffer: Buffer): Promise<string> {
+  async uploadPdf(pdfBuffer: Buffer, filename?: string): Promise<string> {
     try {
+      // Generate a unique filename with .pdf extension if not provided
+      const uniqueFilename =
+        filename ||
+        `${Date.now()}-${Math.random().toString(36).substring(2)}.pdf`;
+
       const result = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             folder: 'brandbook/pdfs',
             resource_type: 'raw',
+            public_id: uniqueFilename.replace(/\.pdf$/, ''), // Remove .pdf extension as Cloudinary will add it
+            format: 'pdf', // Explicitly set the format to PDF
           },
           (error, result) => {
             if (error) reject(error);
@@ -80,6 +87,44 @@ export class CloudinaryService {
       return (result as any).secure_url;
     } catch (error) {
       console.error('Error uploading PDF to Cloudinary:', error);
+      throw error;
+    }
+  }
+
+  async uploadFile(
+    buffer: Buffer,
+    options: {
+      filename: string;
+      folder: string;
+      resourceType?: 'raw' | 'image' | 'video' | 'auto';
+    },
+  ): Promise<string> {
+    try {
+      const fileExtension = options.filename.split('.').pop()?.toLowerCase();
+      const isPdf = fileExtension === 'pdf';
+
+      const uploadOptions = {
+        folder: options.folder,
+        resource_type:
+          options.resourceType || ((isPdf ? 'raw' : 'auto') as 'raw' | 'auto'),
+        public_id: options.filename.replace(/\.[^/.]+$/, ''), // Remove extension
+        format: fileExtension, // Explicitly set the format to maintain extension
+      };
+
+      const result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          uploadOptions,
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          },
+        );
+        uploadStream.end(buffer);
+      });
+
+      return (result as any).secure_url;
+    } catch (error) {
+      console.error('Error uploading file to Cloudinary:', error);
       throw error;
     }
   }

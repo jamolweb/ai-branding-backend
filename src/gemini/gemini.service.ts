@@ -160,4 +160,62 @@ export class GeminiService {
       });
     }
   }
+
+  async generateBrandImage(prompt: string): Promise<string> {
+    try {
+      const model = this.gemini.models;
+      const response = await model.generateContent({
+        model: 'gemini-2.0-flash-exp-image-generation',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseModalities: ['Text', 'Image'],
+        },
+      });
+
+      if (!response?.candidates?.[0]?.content) {
+        throw new Error(
+          'Invalid response structure: No candidates or content found',
+        );
+      }
+
+      const content = response.candidates[0].content;
+      let imageBase64 = null;
+
+      const parts = Array.isArray(content) ? content : content.parts;
+      if (!parts) {
+        throw new Error('No parts found in response content');
+      }
+
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          imageBase64 = part.inlineData.data;
+          break;
+        }
+      }
+
+      if (!imageBase64) {
+        throw new Error('No image data found in response parts');
+      }
+
+      const imageUrl = `data:image/png;base64,${imageBase64}`;
+      const cloudinaryUrl = await this.cloudinaryService.uploadImage(imageUrl);
+
+      return cloudinaryUrl;
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      throw new HttpException(
+        `Failed to generate brand image: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
