@@ -12,6 +12,23 @@ interface AIBrandContent {
   brandVoice: string;
   applicationExamples: string;
   visualExample?: string;
+  typography: {
+    description: string;
+    guidelines: string[];
+  };
+  voiceTone: {
+    characteristics: Array<{ trait: string; description: string }>;
+    guidelines: string[];
+  };
+  visualGuidelines: {
+    photography: Array<{ title: string; description: string }>;
+    imagery: string[];
+  };
+  applications: Array<{
+    category: string;
+    description: string;
+    items: string[];
+  }>;
 }
 
 @Injectable()
@@ -32,15 +49,55 @@ export class AIContentService {
 
     try {
       const prompt = `Create a comprehensive brand identity for ${companyName}, a company in the ${industry} industry. Include:
-1. A compelling brand description
-2. Mission statement
-3. Vision statement
-4. Core values (4-5 points)
-5. Visual style guidelines
-6. Brand voice and tone
-7. Application examples
 
-Keep each section concise but impactful. Format in JSON.`;
+1. Brand Description: A compelling overview of the brand
+2. Mission & Vision:
+   - Mission statement
+   - Vision statement
+3. Core Values: 4-5 key values with brief descriptions
+4. Visual Style: Guidelines for brand's visual identity
+5. Typography: Guidelines and recommendations
+6. Voice & Tone:
+   - 4 key characteristics with descriptions
+   - 5 writing guidelines
+7. Visual Guidelines:
+   - 3 photography style points
+   - 4 imagery guidelines
+8. Brand Applications:
+   - 4 categories (Digital, Print, Marketing, Brand Assets)
+   - 4 items per category
+
+Format as detailed JSON matching the following structure:
+{
+  "description": "string",
+  "mission": "string",
+  "vision": "string",
+  "coreValues": ["string"],
+  "visualStyle": "string",
+  "brandVoice": "string",
+  "applicationExamples": "string",
+  "typography": {
+    "description": "string",
+    "guidelines": ["string"]
+  },
+  "voiceTone": {
+    "characteristics": [{"trait": "string", "description": "string"}],
+    "guidelines": ["string"]
+  },
+  "visualGuidelines": {
+    "photography": [{"title": "string", "description": "string"}],
+    "imagery": ["string"]
+  },
+  "applications": [
+    {
+      "category": "string",
+      "description": "string",
+      "items": ["string"]
+    }
+  ]
+}
+
+Make all content professional, modern, and specific to the ${industry} industry.`;
 
       const response = await axios.post(
         'https://api.deepseek.com/v1/chat/completions',
@@ -58,7 +115,7 @@ Keep each section concise but impactful. Format in JSON.`;
             },
           ],
           temperature: 0.7,
-          max_tokens: 1000,
+          max_tokens: 2000,
           presence_penalty: 0,
           frequency_penalty: 0,
         },
@@ -76,16 +133,13 @@ Keep each section concise but impactful. Format in JSON.`;
         content = JSON.parse(response.data.choices[0].message.content.trim());
       } catch (parseError) {
         this.logger.error('Error parsing AI content response:', parseError);
-        // Return default content if parsing fails
         return this.getDefaultBrandContent(companyName, industry);
       }
 
-      // Validate the content structure
       if (!this.isValidBrandContent(content)) {
         return this.getDefaultBrandContent(companyName, industry);
       }
 
-      // Try to generate visual example, but don't fail if it doesn't work
       let visualExample;
       try {
         const visualPrompt = `Create a professional brand visual for ${companyName} in ${industry} industry. Style: ${content.visualStyle}. Make it modern, clean, and professional.`;
@@ -118,8 +172,22 @@ Keep each section concise but impactful. Format in JSON.`;
       typeof content.visualStyle === 'string' &&
       typeof content.brandVoice === 'string' &&
       typeof content.applicationExamples === 'string' &&
-      (content.visualExample === undefined ||
-        typeof content.visualExample === 'string')
+      typeof content.typography === 'object' &&
+      typeof content.typography.description === 'string' &&
+      Array.isArray(content.typography.guidelines) &&
+      typeof content.voiceTone === 'object' &&
+      Array.isArray(content.voiceTone.characteristics) &&
+      Array.isArray(content.voiceTone.guidelines) &&
+      typeof content.visualGuidelines === 'object' &&
+      Array.isArray(content.visualGuidelines.photography) &&
+      Array.isArray(content.visualGuidelines.imagery) &&
+      Array.isArray(content.applications) &&
+      content.applications.every(
+        (app) =>
+          typeof app.category === 'string' &&
+          typeof app.description === 'string' &&
+          Array.isArray(app.items),
+      )
     );
   }
 
@@ -145,6 +213,108 @@ Keep each section concise but impactful. Format in JSON.`;
         'Brand applications include corporate stationery, digital presence, marketing materials, and customer touchpoints.',
       visualExample:
         'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg',
+      typography: {
+        description:
+          'Clean, modern typography that emphasizes readability and professionalism.',
+        guidelines: [
+          'Use Poppins as the primary font family',
+          'Maintain consistent heading hierarchy',
+          'Ensure adequate contrast and spacing',
+          'Keep text aligned and balanced',
+        ],
+      },
+      voiceTone: {
+        characteristics: [
+          {
+            trait: 'Professional',
+            description:
+              'Clear, competent, and authoritative while remaining accessible',
+          },
+          {
+            trait: 'Innovative',
+            description:
+              'Forward-thinking and solution-oriented in communication',
+          },
+          {
+            trait: 'Trustworthy',
+            description:
+              'Reliable, transparent, and honest in all interactions',
+          },
+          {
+            trait: 'Empathetic',
+            description: 'Understanding and responsive to customer needs',
+          },
+        ],
+        guidelines: [
+          'Use clear, concise language',
+          'Maintain a positive and solution-focused tone',
+          'Be consistent across all communications',
+          'Address audience needs directly',
+          'Balance professionalism with approachability',
+        ],
+      },
+      visualGuidelines: {
+        photography: [
+          {
+            title: 'Lighting',
+            description:
+              'Natural, bright lighting that creates a clean and professional atmosphere',
+          },
+          {
+            title: 'Composition',
+            description:
+              'Clean, uncluttered compositions with clear focal points',
+          },
+          {
+            title: 'Style',
+            description:
+              'Modern and professional imagery that reflects industry expertise',
+          },
+        ],
+        imagery: [
+          'Use high-quality, professional imagery',
+          'Maintain consistent style across all materials',
+          'Ensure images reflect brand values',
+          'Keep visual elements clean and uncluttered',
+        ],
+      },
+      applications: [
+        {
+          category: 'Digital Presence',
+          description: 'Cohesive online brand representation',
+          items: ['Website', 'Social Media', 'Email Templates', 'Digital Ads'],
+        },
+        {
+          category: 'Print Materials',
+          description: 'Professional physical brand materials',
+          items: [
+            'Business Cards',
+            'Letterheads',
+            'Brochures',
+            'Presentations',
+          ],
+        },
+        {
+          category: 'Marketing Collateral',
+          description: 'Engaging promotional materials',
+          items: [
+            'Product Catalogs',
+            'Banners',
+            'Promotional Items',
+            'Event Materials',
+          ],
+        },
+        {
+          category: 'Brand Assets',
+          description: 'Core brand identity elements',
+          items: [
+            'Logo Variations',
+            'Icon Set',
+            'Photography Style',
+            'Illustration Style',
+          ],
+        },
+      ],
     };
   }
 

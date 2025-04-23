@@ -19,6 +19,21 @@ interface BrandBookConfig {
   vision?: string;
   coreValues?: string[];
   industry?: string;
+  aiContent: {
+    typography: {
+      description: string;
+      guidelines: string[];
+    };
+    voiceTone: {
+      characteristics: { trait: string; description: string }[];
+      guidelines: string[];
+    };
+    visualGuidelines: {
+      photography: { title: string; description: string }[];
+      imagery: string[];
+    };
+    applications: { category: string; description: string; items: string[] }[];
+  };
 }
 
 @Injectable()
@@ -196,7 +211,6 @@ export class BrandBookPdfGeneratorService {
       });
     }
 
-    // this.addFooter(doc, config);
     this.addPageNumber(doc);
     doc.addPage();
   }
@@ -210,58 +224,76 @@ export class BrandBookPdfGeneratorService {
 
     this.addSectionTitle(doc, 'Our Purpose', config.preferredColor);
 
-    let yOffset = 150;
+    let yOffset = 160;
 
     this.addSubsectionTitle(doc, 'Mission', config.preferredColor, yOffset);
-    yOffset += 40;
+    yOffset += 30;
 
+    doc.rect(50, yOffset, doc.page.width - 100, 100).fill('#F8F8F8');
     doc
       .font('Poppins-Regular')
       .fontSize(14)
       .fillColor('#333333')
-      .text(config.mission || '', 50, yOffset, {
-        width: doc.page.width - 100,
+      .text(config.mission || '', 70, yOffset + 20, {
+        width: doc.page.width - 140,
+        align: 'left',
+        lineGap: 4,
       });
 
-    yOffset += 80;
+    yOffset += 140;
     this.addSubsectionTitle(doc, 'Vision', config.preferredColor, yOffset);
-    yOffset += 40;
+    yOffset += 30;
 
+    doc.rect(50, yOffset, doc.page.width - 100, 100).fill('#F8F8F8');
     doc
       .font('Poppins-Regular')
       .fontSize(14)
       .fillColor('#333333')
-      .text(config.vision || '', 50, yOffset, {
-        width: doc.page.width - 100,
+      .text(config.vision || '', 70, yOffset + 20, {
+        width: doc.page.width - 140,
+        align: 'left',
+        lineGap: 4,
       });
 
-    yOffset += 80;
+    yOffset += 140;
     this.addSubsectionTitle(doc, 'Core Values', config.preferredColor, yOffset);
     yOffset += 40;
 
     const values = config.coreValues || [];
     const columns = 2;
     const valueWidth = (doc.page.width - 150) / columns;
+    const valueHeight = 120;
+    const columnGap = 50;
 
     values.forEach((value, index) => {
       const col = index % columns;
       const row = Math.floor(index / columns);
-      const x = 50 + col * valueWidth;
-      const y = yOffset + row * 80;
+      const x = 50 + col * (valueWidth + columnGap);
+      const y = yOffset + row * (valueHeight + 20);
 
       doc
-        .rect(x, y, valueWidth - 20, 60)
-        .fill('#F5F5F5')
-        .fillColor('#333333')
+        .rect(x, y, valueWidth, valueHeight)
+        .fill('#F8F8F8')
+        .fillColor('#333333');
+
+      doc
         .font('Poppins-Bold')
-        .fontSize(14)
-        .text(value, x + 15, y + 20, {
-          width: valueWidth - 50,
+        .fontSize(16)
+        .text(value.split('–')[0], x + 20, y + 20, {
+          width: valueWidth - 40,
           align: 'left',
+        });
+
+      doc
+        .font('Poppins-Regular')
+        .fontSize(14)
+        .text(value.split('–')[1] || '', x + 20, y + 50, {
+          width: valueWidth - 40,
+          align: 'left',
+          lineGap: 2,
         });
     });
 
-    // this.addFooter(doc, config);
     this.addPageNumber(doc);
     doc.addPage();
   }
@@ -321,7 +353,6 @@ export class BrandBookPdfGeneratorService {
       this.addColorSwatch(doc, color, `${colorType} Color`, x, y, swatchWidth);
     });
 
-    // this.addFooter(doc, config);
     this.addPageNumber(doc);
     doc.addPage();
   }
@@ -336,6 +367,16 @@ export class BrandBookPdfGeneratorService {
     this.addSectionTitle(doc, 'Typography', config.preferredColor);
 
     let yOffset = 150;
+
+    doc
+      .font('Poppins-Regular')
+      .fontSize(14)
+      .fillColor('#333333')
+      .text(config.aiContent.typography.description, 50, yOffset, {
+        width: doc.page.width - 100,
+      });
+
+    yOffset += 80;
 
     const samples = [
       { size: 48, weight: 'Bold', text: 'Heading 1', description: '48px Bold' },
@@ -379,7 +420,19 @@ export class BrandBookPdfGeneratorService {
       yOffset += 100;
     });
 
-    // this.addFooter(doc, config);
+    yOffset += 20;
+    this.addSubsectionTitle(doc, 'Guidelines', config.preferredColor, yOffset);
+    yOffset += 40;
+
+    config.aiContent.typography.guidelines.forEach((guideline) => {
+      doc
+        .font('Poppins-Regular')
+        .fontSize(14)
+        .fillColor('#333333')
+        .text(`• ${guideline}`, 70, yOffset);
+      yOffset += 30;
+    });
+
     this.addPageNumber(doc);
     doc.addPage();
   }
@@ -403,24 +456,7 @@ export class BrandBookPdfGeneratorService {
     );
     yOffset += 40;
 
-    const photoStyles = [
-      {
-        title: 'Lighting',
-        description:
-          'Natural, bright lighting that creates a clean and professional atmosphere.',
-      },
-      {
-        title: 'Composition',
-        description: 'Clean, uncluttered compositions with clear focal points.',
-      },
-      {
-        title: 'Color Treatment',
-        description:
-          'Consistent color grading that aligns with the brand palette.',
-      },
-    ];
-
-    photoStyles.forEach((style) => {
+    config.aiContent.visualGuidelines.photography.forEach((style) => {
       doc
         .rect(50, yOffset, doc.page.width - 100, 80)
         .fill('#F5F5F5')
@@ -445,14 +481,7 @@ export class BrandBookPdfGeneratorService {
     );
     yOffset += 40;
 
-    const guidelines = [
-      'Use high-quality, professional imagery',
-      'Maintain consistent style across all materials',
-      'Avoid overly filtered or artificial-looking photos',
-      'Ensure images reflect brand values and message',
-    ];
-
-    guidelines.forEach((guideline) => {
+    config.aiContent.visualGuidelines.imagery.forEach((guideline) => {
       doc
         .font('Poppins-Regular')
         .fontSize(14)
@@ -461,7 +490,6 @@ export class BrandBookPdfGeneratorService {
       yOffset += 30;
     });
 
-    // this.addFooter(doc, config);
     this.addPageNumber(doc);
     doc.addPage();
   }
@@ -485,27 +513,7 @@ export class BrandBookPdfGeneratorService {
     );
     yOffset += 40;
 
-    const voiceCharacteristics = [
-      {
-        trait: 'Professional',
-        description:
-          'Clear, competent, and authoritative while remaining accessible',
-      },
-      {
-        trait: 'Friendly',
-        description: 'Warm and approachable, building trust with our audience',
-      },
-      {
-        trait: 'Innovative',
-        description: 'Forward-thinking and solution-oriented',
-      },
-      {
-        trait: 'Authentic',
-        description: 'Genuine, transparent, and honest in all communications',
-      },
-    ];
-
-    voiceCharacteristics.forEach((char) => {
+    config.aiContent.voiceTone.characteristics.forEach((char) => {
       doc
         .rect(50, yOffset, doc.page.width - 100, 80)
         .fill('#F5F5F5')
@@ -530,15 +538,7 @@ export class BrandBookPdfGeneratorService {
     );
     yOffset += 40;
 
-    const writingGuidelines = [
-      'Use active voice and direct language',
-      'Keep sentences concise and clear',
-      'Avoid jargon and overly technical terms',
-      'Maintain a consistent tone across all platforms',
-      'Address the audience directly using "you" and "your"',
-    ];
-
-    writingGuidelines.forEach((guideline) => {
+    config.aiContent.voiceTone.guidelines.forEach((guideline) => {
       doc
         .font('Poppins-Regular')
         .fontSize(14)
@@ -547,7 +547,6 @@ export class BrandBookPdfGeneratorService {
       yOffset += 30;
     });
 
-    // this.addFooter(doc, config);
     this.addPageNumber(doc);
     doc.addPage();
   }
@@ -564,42 +563,23 @@ export class BrandBookPdfGeneratorService {
 
     let yOffset = 150;
 
-    const categories = [
-      {
-        title: 'Digital Presence',
-        items: ['Website', 'Social Media', 'Email Templates', 'Digital Ads'],
-      },
-      {
-        title: 'Print Materials',
-        items: ['Business Cards', 'Letterheads', 'Brochures', 'Presentations'],
-      },
-      {
-        title: 'Marketing Collateral',
-        items: [
-          'Product Catalogs',
-          'Banners',
-          'Promotional Items',
-          'Event Materials',
-        ],
-      },
-      {
-        title: 'Brand Assets',
-        items: [
-          'Logo Variations',
-          'Icon Set',
-          'Photography Style',
-          'Illustration Style',
-        ],
-      },
-    ];
-
-    categories.forEach((category) => {
+    config.aiContent.applications.forEach((category) => {
       this.addSubsectionTitle(
         doc,
-        category.title,
+        category.category,
         config.preferredColor,
         yOffset,
       );
+      yOffset += 40;
+
+      doc
+        .font('Poppins-Regular')
+        .fontSize(14)
+        .fillColor('#666666')
+        .text(category.description, 50, yOffset, {
+          width: doc.page.width - 100,
+        });
+
       yOffset += 40;
 
       doc.rect(50, yOffset, doc.page.width - 100, 100).fill('#F5F5F5');
