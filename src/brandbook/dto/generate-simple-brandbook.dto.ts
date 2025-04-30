@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsEmail,
@@ -44,10 +45,14 @@ export class GenerateSimpleBrandbookDto {
   vision?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    try {
+      return typeof value === 'string' ? JSON.parse(value) : value;
+    } catch {
+      return value;
+    }
+  })
   @IsArray()
   @IsString({ each: true })
   coreValues?: string[];
-
-  @IsString()
-  logoUrl: string;
 }

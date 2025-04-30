@@ -47,7 +47,9 @@ export class BrandbookService {
     return this.cloudinaryService.uploadPdf(Buffer.from(pdfBuffer));
   }
 
-  async create(data: GenerateSimpleBrandbookDto & { userId: string }) {
+  async create(
+    data: GenerateSimpleBrandbookDto & { userId: string; logoUrl: string },
+  ) {
     const filename =
       await this.simplePdfGeneratorService.generateSimpleBrandbook(data);
     const pdfUrl = `http://localhost:3003/api/brandbook/pdf/${filename}`;

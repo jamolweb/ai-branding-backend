@@ -164,14 +164,42 @@ export class BrandbookController {
   }
 
   @Post()
+  @UseInterceptors(FileInterceptor('logo'))
   async generateSimpleBrandbook(
     @Body() data: GenerateSimpleBrandbookDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|gif|webp)' }),
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB max
+        ],
+        fileIsRequired: true, // Logo is required
+      }),
+    )
+    logo: Express.Multer.File,
     @Req() req: Request,
   ) {
-    return this.brandbookService.create({
-      ...data,
-      userId: req.user['id'],
-    });
+    try {
+      // Upload logo to Cloudinary
+      const logoUrl = await this.cloudinaryService.uploadLogo(logo);
+
+      // Create brandbook with the uploaded logo URL
+      const createData = {
+        ...data,
+        userId: req.user['id'],
+      };
+
+      // Add the logo URL to a new object to avoid DTO validation
+      const finalData = {
+        ...createData,
+        logoUrl,
+      };
+
+      return this.brandbookService.create(finalData);
+    } catch (error) {
+      this.logger.error('Error generating simple brandbook:', error);
+      throw new BadRequestException('Failed to generate brandbook');
+    }
   }
 
   @Get('pdf/:filename')
