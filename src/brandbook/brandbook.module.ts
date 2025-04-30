@@ -9,6 +9,7 @@ import { AIContentService } from './services/ai-content.service';
 import { BrandBookPdfGeneratorService } from './services/brandbook-pdf-generator.service';
 import { MockContentService } from './services/mock-content.service';
 import { PdfService } from './services/pdf.service';
+import { SimplePdfGeneratorService } from './services/simple-pdf-generator.service';
 import { TemplateService } from './services/template.service';
 
 @Module({
@@ -22,6 +23,7 @@ import { TemplateService } from './services/template.service';
     PdfService,
     BrandBookPdfGeneratorService,
     AIContentService,
+    SimplePdfGeneratorService,
   ],
   exports: [BrandbookService],
 })

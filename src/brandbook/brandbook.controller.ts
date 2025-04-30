@@ -28,7 +28,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BrandbookService } from './brandbook.service';
 import { CreateBrandbookDto } from './dto/create-brandbook.dto';
 import { GenerateCustomBrandBookDto } from './dto/generate-custom-brandbook.dto';
+import { GenerateSimpleBrandbookDto } from './dto/generate-simple-brandbook.dto';
 import { BrandBookPdfGeneratorService } from './services/brandbook-pdf-generator.service';
+import { SimplePdfGeneratorService } from './services/simple-pdf-generator.service';
 
 @Controller('brandbook')
 @UseGuards(JwtAuthGuard)
@@ -38,6 +40,7 @@ export class BrandbookController {
   constructor(
     private readonly brandbookService: BrandbookService,
     private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
+    private readonly simplePdfGeneratorService: SimplePdfGeneratorService,
   ) {}
 
   @Post()
@@ -180,8 +183,16 @@ export class BrandbookController {
     }
   }
 
+  @Post('generate-simple')
+  async generateSimpleBrandbook(@Body() data: GenerateSimpleBrandbookDto) {
+    const filename =
+      await this.simplePdfGeneratorService.generateSimpleBrandbook(data);
+    const pdfUrl = `http://localhost:3003/api/brandbook/pdf/${filename}`;
+    return { pdfUrl };
+  }
+
   @Get('pdf/:filename')
-  async servePdf(
+  async getPdf(
     @Param('filename') filename: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
