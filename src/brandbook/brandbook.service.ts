@@ -8,8 +8,10 @@ import * as puppeteer from 'puppeteer';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrandbookDto } from './dto/create-brandbook.dto';
+import { GenerateSimpleBrandbookDto } from './dto/generate-simple-brandbook.dto';
 import { MockContentService } from './services/mock-content.service';
 import { PdfService } from './services/pdf.service';
+import { SimplePdfGeneratorService } from './services/simple-pdf-generator.service';
 import { TemplateService } from './services/template.service';
 
 @Injectable()
@@ -22,6 +24,7 @@ export class BrandbookService {
     private templateService: TemplateService,
     private cloudinaryService: CloudinaryService,
     private pdfService: PdfService,
+    private readonly simplePdfGeneratorService: SimplePdfGeneratorService,
   ) {
     this.logger = new Logger(BrandbookService.name);
   }
@@ -44,20 +47,10 @@ export class BrandbookService {
     return this.cloudinaryService.uploadPdf(Buffer.from(pdfBuffer));
   }
 
-  async create(
-    data: CreateBrandbookDto & { userId: string; logo: Express.Multer.File },
-  ) {
-    // Upload logo to Cloudinary
-    const logoUrl = await this.cloudinaryService.uploadLogo(data.logo);
-
-    // Generate mock content (to be replaced with AI-generated content later)
-    const content = this.mockContentService.generateMockContent(data);
-
-    // Generate HTML from content
-    const html = this.templateService.generateHTML(content, data);
-
-    // Generate PDF and upload to Cloudinary
-    const pdfUrl = await this.generatePdfFromHtml(html);
+  async create(data: GenerateSimpleBrandbookDto & { userId: string }) {
+    const filename =
+      await this.simplePdfGeneratorService.generateSimpleBrandbook(data);
+    const pdfUrl = `http://localhost:3003/api/brandbook/pdf/${filename}`;
 
     // Save to database
     return this.prisma.brandbook.create({
@@ -72,9 +65,9 @@ export class BrandbookService {
         authorEmail: data.authorEmail,
         preferredColor: data.preferredColor,
         preferredFont: data.preferredFont,
-        logoUrl,
-        generatedHtml: html,
-        generatedJson: content,
+        logoUrl: data.logoUrl,
+        generatedHtml: '',
+        generatedJson: { date: 'test' },
         pdfUrl,
       },
     });

@@ -34,7 +34,6 @@ import { CreateBrandbookDto } from './dto/create-brandbook.dto';
 import { GenerateCustomBrandBookDto } from './dto/generate-custom-brandbook.dto';
 import { GenerateSimpleBrandbookDto } from './dto/generate-simple-brandbook.dto';
 import { BrandBookPdfGeneratorService } from './services/brandbook-pdf-generator.service';
-import { SimplePdfGeneratorService } from './services/simple-pdf-generator.service';
 
 @Controller('brandbook')
 @UseGuards(JwtAuthGuard)
@@ -44,7 +43,6 @@ export class BrandbookController {
   constructor(
     private readonly brandbookService: BrandbookService,
     private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
-    private readonly simplePdfGeneratorService: SimplePdfGeneratorService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
@@ -140,11 +138,6 @@ export class BrandbookController {
     return pdf;
   }
 
-  @Post(':id/regenerate')
-  async regenerateBrandbook(@Param('id') id: string, @Req() req: Request) {
-    return this.brandbookService.regenerateWithAI(id, req.user['id']);
-  }
-
   @Get('logo/:filename')
   async getLogo(
     @Param('filename') filename: string,
@@ -171,11 +164,14 @@ export class BrandbookController {
   }
 
   @Post()
-  async generateSimpleBrandbook(@Body() data: GenerateSimpleBrandbookDto) {
-    const filename =
-      await this.simplePdfGeneratorService.generateSimpleBrandbook(data);
-    const pdfUrl = `http://localhost:3003/api/brandbook/pdf/${filename}`;
-    return { pdfUrl };
+  async generateSimpleBrandbook(
+    @Body() data: GenerateSimpleBrandbookDto,
+    @Req() req: Request,
+  ) {
+    return this.brandbookService.create({
+      ...data,
+      userId: req.user['id'],
+    });
   }
 
   @Get('pdf/:filename')

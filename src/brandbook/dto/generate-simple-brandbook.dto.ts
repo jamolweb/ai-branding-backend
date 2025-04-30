@@ -1,23 +1,53 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsEmail,
+  IsHexColor,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class GenerateSimpleBrandbookDto {
   @IsString()
-  @IsNotEmpty()
   companyName: string;
 
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  tagline: string;
+
+  @IsHexColor()
+  preferredColor: string;
 
   @IsString()
-  @IsNotEmpty()
+  industry: string;
+
+  @IsString()
+  preferredFont: string;
+
+  @IsString()
   authorName: string;
 
   @IsString()
-  @IsNotEmpty()
   authorRole: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsEmail()
   authorEmail: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  mission?: string;
+
+  @IsOptional()
+  @IsString()
+  vision?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  coreValues?: string[];
+
+  @IsString()
+  logoUrl: string;
 }
