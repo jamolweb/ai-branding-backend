@@ -43,24 +43,6 @@ export class BrandbookController {
     private readonly simplePdfGeneratorService: SimplePdfGeneratorService,
   ) {}
 
-  @Post()
-  @UseInterceptors(FileInterceptor('logo'))
-  async createBrandbook(
-    @UploadedFile() logo: Express.Multer.File,
-    @Body() createBrandbookDto: CreateBrandbookDto,
-    @Req() req: Request,
-  ) {
-    if (!logo) {
-      throw new BadRequestException('Logo file is required');
-    }
-
-    return this.brandbookService.create({
-      ...createBrandbookDto,
-      userId: req.user['id'],
-      logo,
-    });
-  }
-
   @Get()
   async getBrandbooks(@Req() req: Request) {
     return this.brandbookService.findAllByUser(req.user['id']);
@@ -183,7 +165,7 @@ export class BrandbookController {
     }
   }
 
-  @Post('generate-simple')
+  @Post()
   async generateSimpleBrandbook(@Body() data: GenerateSimpleBrandbookDto) {
     const filename =
       await this.simplePdfGeneratorService.generateSimpleBrandbook(data);
