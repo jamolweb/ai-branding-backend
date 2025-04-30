@@ -207,10 +207,19 @@ export class BrandbookController {
     @Res() res: Response,
   ) {
     try {
+      // Get AI content first
+      const aiContent = await this.brandBookPdfGeneratorService[
+        'aiContentService'
+      ].generateBrandContent(
+        brandBookData.companyName,
+        brandBookData.industry || 'technology',
+      );
+
       const pdfBuffer =
-        await this.brandBookPdfGeneratorService.generateBrandBook(
-          brandBookData,
-        );
+        await this.brandBookPdfGeneratorService.generateBrandBook({
+          ...brandBookData,
+          aiContent,
+        });
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(

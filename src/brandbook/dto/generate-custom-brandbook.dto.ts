@@ -14,6 +14,10 @@ export class GenerateCustomBrandBookDto {
   @IsString()
   tagline: string;
 
+  @IsString()
+  @IsOptional()
+  industry?: string;
+
   @IsHexColor()
   preferredColor: string;
 
