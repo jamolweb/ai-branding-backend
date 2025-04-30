@@ -3,13 +3,16 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
   InternalServerErrorException,
   Logger,
+  MaxFileSizeValidator,
   NotFoundException,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Req,
@@ -25,6 +28,7 @@ import { Request, Response } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { BrandbookService } from './brandbook.service';
 import { CreateBrandbookDto } from './dto/create-brandbook.dto';
 import { GenerateCustomBrandBookDto } from './dto/generate-custom-brandbook.dto';
@@ -41,6 +45,7 @@ export class BrandbookController {
     private readonly brandbookService: BrandbookService,
     private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
     private readonly simplePdfGeneratorService: SimplePdfGeneratorService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   @Get()
@@ -224,6 +229,28 @@ export class BrandbookController {
     } catch (error) {
       this.logger.error('Error generating custom brand book:', error);
       throw new InternalServerErrorException('Error generating brand book');
+    }
+  }
+
+  @Post('upload-logo')
+  @UseInterceptors(FileInterceptor('logo'))
+  async uploadLogo(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|gif|webp)' }),
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB max
+        ],
+      }),
+    )
+    logo: Express.Multer.File,
+  ) {
+    try {
+      const logoUrl = await this.cloudinaryService.uploadLogo(logo);
+      return { logoUrl };
+    } catch (error) {
+      this.logger.error('Error uploading logo:', error);
+      throw new BadRequestException('Failed to upload logo');
     }
   }
 }
