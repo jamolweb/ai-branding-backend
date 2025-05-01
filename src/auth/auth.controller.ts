@@ -38,7 +38,7 @@ export class AuthController {
 
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req) {
+  async googleAuth() {
     const googleAuthUrl =
       `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${process.env.GOOGLE_CLIENT_ID}` +
@@ -61,9 +61,9 @@ export class AuthController {
     );
 
     // Redirect to frontend with tokens
-    // const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://api.brandlly.ai' : 'http://localhost:3000';
+    // const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://brandlly.ai' : 'http://localhost:3000';
     return res.redirect(
-      `https://api.brandlly.ai/dashboard?` +
+      `https://brandlly.ai/dashboard?` +
         `accessToken=${tokens.accessToken}&` +
         `refreshToken=${tokens.refreshToken}`,
     );

@@ -7,7 +7,8 @@ JWT_REFRESH_EXPIRATION=7d
 PORT=3001
 REDIS_PASSWORD=
 REDIS_HOST=localhost
-REDIS_PORT=6379GOOGLE_CALLBACK_URL=http://localhost:3001/api/auth/google/callback
+REDIS_PORT=6379
+GOOGLE_CALLBACK_URL=http://localhost:3001/api/auth/google/callback
 GOOGLE_CLIENT_ID=575678191733-poe7tvag144hl7p2aa5imv2ttn44deho.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=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
 FRONTEND_URL=http://localhost:3000
