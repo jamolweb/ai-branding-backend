@@ -52,9 +52,9 @@ export class BrandbookService {
   ) {
     const filename =
       await this.simplePdfGeneratorService.generateSimpleBrandbook(data);
-    const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://brandlly.ai' : 'http://localhost:3000';
+    // const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://brandlly.ai' : 'http://localhost:3000';
 
-    const pdfUrl = `${frontendUrl}/api/brandbook/pdf/${filename}`;
+    const pdfUrl = `https://brandlly.ai/api/brandbook/pdf/${filename}`;
 
     // Save to database
     return this.prisma.brandbook.create({
