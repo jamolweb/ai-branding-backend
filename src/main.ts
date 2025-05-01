@@ -8,9 +8,7 @@ async function bootstrap() {
     origin: [
       process.env.FRONTEND_URL ?? 'http://localhost:3000',
       'https://ai-branding-frontend.vercel.app',
-      'http://168.231.73.249:3000',
-      'https://brandlly.ai',
-      'http://brandlly.ai',
+      'https://brandlly.ai'
     ],
     credentials: true,
   });
