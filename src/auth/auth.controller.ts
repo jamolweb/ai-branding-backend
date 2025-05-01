@@ -61,9 +61,9 @@ export class AuthController {
     );
 
     // Redirect to frontend with tokens
-    const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://brandlly.ai' : 'http://localhost:3000';
+    // const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://brandlly.ai' : 'http://localhost:3000';
     return res.redirect(
-      `${frontendUrl}/dashboard?` +
+      `https://brandlly.ai/dashboard?` +
         `accessToken=${tokens.accessToken}&` +
         `refreshToken=${tokens.refreshToken}`,
     );
