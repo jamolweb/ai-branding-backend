@@ -52,7 +52,7 @@ export class BrandbookService {
   ) {
     const filename =
       await this.simplePdfGeneratorService.generateSimpleBrandbook(data);
-    const pdfUrl = `http://localhost:3003/api/brandbook/pdf/${filename}`;
+    const pdfUrl = `http://localhost:3001/api/brandbook/pdf/${filename}`;
 
     // Save to database
     return this.prisma.brandbook.create({

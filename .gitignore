@@ -4,6 +4,11 @@
 /build
 /public/pdfs
 
+# Environment
+.env
+!.env.development
+!.env.production
+
 # Logs
 logs
 *.log
