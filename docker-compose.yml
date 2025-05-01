@@ -29,6 +29,7 @@ services:
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://postgres:postgres@db:5432/aibranding
+      FRONTEND_URL: https://brandlly.ai
       JWT_ACCESS_SECRET: "PVP2y![>duuwKC**SF"
       JWT_REFRESH_SECRET: "uw9@,0z9xQ{kxx:yi#miK.eb8rft"
       JWT_ACCESS_EXPIRATION: "15m"
