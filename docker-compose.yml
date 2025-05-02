@@ -42,6 +42,9 @@ services:
       CLOUDINARY_CLOUD_NAME: dnryptsog
       CLOUDINARY_API_SECRET: BN9xT97izpic1Ki_F3aavpiPzhc
       CLOUDINARY_API_KEY: 742893385111615
+      GOOGLE_CALLBACK_URL: https://api.brandlly.ai/api/auth/google/callback
+      GOOGLE_CLIENT_SECRET: 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
+      GOOGLE_CLIENT_ID: 575678191733-poe7tvag144hl7p2aa5imv2ttn44deho.apps.googleusercontent.com
 
   migrations:
     build: .
