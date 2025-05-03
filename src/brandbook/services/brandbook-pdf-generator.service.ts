@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import * as path from 'path';
 import * as PDFDocument from 'pdfkit';
 import * as QRCode from 'qrcode';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { GeminiService } from '../../gemini/gemini.service';
 import { AIContentService } from './ai-content.service';
+import { firstValueFrom } from 'rxjs';
 
 interface BrandBookConfig {
   companyName: string;
@@ -39,34 +41,51 @@ interface BrandBookConfig {
 @Injectable()
 export class BrandBookPdfGeneratorService {
   private currentPage = 1;
+  private readonly logger = new Logger(BrandBookPdfGeneratorService.name);
 
   constructor(
     private readonly cloudinaryService: CloudinaryService,
     private readonly geminiService: GeminiService,
     private readonly aiContentService: AIContentService,
+    private readonly httpService: HttpService,
   ) {}
 
-  async generateBrandBook(config: BrandBookConfig): Promise<Buffer> {
+  async generateBrandBook(configInput: BrandBookConfig): Promise<Buffer> {
     this.currentPage = 1;
+    let config = { ...configInput };
 
     if (
       !config.description ||
       !config.mission ||
       !config.vision ||
-      !config.coreValues
+      !config.coreValues ||
+      !config.aiContent
     ) {
-      const aiContent = await this.aiContentService.generateBrandContent(
+      this.logger.log(
+        'Core content or aiContent missing, fetching from AIContentService...',
+      );
+      const fetchedAiContent = await this.aiContentService.generateBrandContent(
         config.companyName,
         config.industry || 'technology',
       );
+      this.logger.log('Fetched AI Content:', fetchedAiContent);
 
       config = {
         ...config,
-        description: config.description || aiContent.description,
-        mission: config.mission || aiContent.mission,
-        vision: config.vision || aiContent.vision,
-        coreValues: config.coreValues || aiContent.coreValues,
+        description: config.description || fetchedAiContent.description,
+        mission: config.mission || fetchedAiContent.mission,
+        vision: config.vision || fetchedAiContent.vision,
+        coreValues: config.coreValues || fetchedAiContent.coreValues,
+        aiContent: config.aiContent || fetchedAiContent,
       };
+      this.logger.debug('Merged config after AI fetch:', config);
+    }
+
+    if (!config.aiContent) {
+      this.logger.error(
+        'AI Content is still missing after fetch/merge. Cannot generate PDF.',
+      );
+      throw new Error('Failed to obtain AI content for PDF generation.');
     }
 
     const colorPalette = await this.aiContentService.generateColorPalette(
@@ -203,12 +222,38 @@ export class BrandBookPdfGeneratorService {
       });
 
     if (config.logoUrl) {
-      const logoY = contentY + 100;
-      doc.image(config.logoUrl, 50, logoY, {
-        width: 200,
-        height: 200,
-        fit: [200, 200],
-      });
+      try {
+        this.logger.debug(
+          `Attempting to download logo from: ${config.logoUrl}`,
+        );
+        const response = await firstValueFrom(
+          this.httpService.get(config.logoUrl, { responseType: 'arraybuffer' }),
+        );
+        const imageBuffer = Buffer.from(response.data);
+        this.logger.debug(
+          `Logo downloaded successfully (${imageBuffer.length} bytes)`,
+        );
+
+        const logoY =
+          contentY +
+          (config.description
+            ? doc.heightOfString(config.description, {
+                width: doc.page.width - 100,
+              }) + 20
+            : 0);
+        const maxLogoWidth = 200;
+        const maxLogoHeight = 150;
+
+        doc.image(imageBuffer, 50, logoY, {
+          fit: [maxLogoWidth, maxLogoHeight],
+        });
+        this.logger.debug('Logo embedded into PDF.');
+      } catch (error) {
+        this.logger.error(
+          `Failed to download or embed logo from ${config.logoUrl}`,
+          error,
+        );
+      }
     }
 
     this.addPageNumber(doc);

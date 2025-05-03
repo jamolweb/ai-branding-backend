@@ -3,16 +3,26 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  InternalServerErrorException,
+  NotImplementedException,
 } from '@nestjs/common';
+import { Brandbook, Prisma } from '@prisma/client';
 import * as puppeteer from 'puppeteer';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrandbookDto } from './dto/create-brandbook.dto';
-import { GenerateSimpleBrandbookDto } from './dto/generate-simple-brandbook.dto';
+import { UpdateBrandbookDto } from './dto/update-brandbook.dto';
+import {
+  AIContentService,
+  CoreContentInput,
+  CoreContentOutput,
+} from './services/ai-content.service';
 import { MockContentService } from './services/mock-content.service';
 import { PdfService } from './services/pdf.service';
-import { SimplePdfGeneratorService } from './services/simple-pdf-generator.service';
 import { TemplateService } from './services/template.service';
+import { BrandBookPdfGeneratorService } from './services/brandbook-pdf-generator.service';
+import * as path from 'path';
+import * as fs from 'fs/promises';
 
 @Injectable()
 export class BrandbookService {
@@ -24,57 +34,235 @@ export class BrandbookService {
     private templateService: TemplateService,
     private cloudinaryService: CloudinaryService,
     private pdfService: PdfService,
-    private readonly simplePdfGeneratorService: SimplePdfGeneratorService,
+    private readonly aiContentService: AIContentService,
+    private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
   ) {
     this.logger = new Logger(BrandbookService.name);
   }
 
-  private async generatePdfFromHtml(html: string): Promise<string> {
-    const browser = await puppeteer.launch({ headless: true });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-
-    // Generate PDF buffer
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
-      printBackground: true,
-    });
-
-    await browser.close();
-
-    // Upload PDF to Cloudinary (convert Uint8Array to Buffer)
-    return this.cloudinaryService.uploadPdf(Buffer.from(pdfBuffer));
-  }
-
   async create(
-    data: GenerateSimpleBrandbookDto & { userId: string; logoUrl: string },
-  ) {
-    const filename =
-      await this.simplePdfGeneratorService.generateSimpleBrandbook(data);
-    // const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://brandlly.ai' : 'http://localhost:3000';
+    data: CreateBrandbookDto,
+    logoFile: Express.Multer.File,
+    userId: string,
+  ): Promise<Brandbook> {
+    this.logger.log(
+      `Starting brandbook creation for user ${userId} and company ${data.companyName}`,
+    );
 
-    const pdfUrl = `https://api.brandlly.ai/api/brandbook/pdf/${filename}`;
+    let logoUrl: string | null = null;
+    try {
+      this.logger.debug('Uploading logo...');
+      logoUrl = await this.cloudinaryService.uploadLogo(logoFile);
+      this.logger.debug(`Logo uploaded successfully: ${logoUrl}`);
+    } catch (error) {
+      this.logger.error('Failed to upload logo to Cloudinary', error);
+      throw new BadRequestException('Failed to upload logo file.');
+    }
 
-    // Save to database
-    return this.prisma.brandbook.create({
-      data: {
-        userId: data.userId,
-        companyName: data.companyName,
-        tagline: data.tagline,
-        industry: data.industry,
-        description: data.description,
-        authorName: data.authorName,
-        authorRole: data.authorRole,
-        authorEmail: data.authorEmail,
-        preferredColor: data.preferredColor,
-        preferredFont: data.preferredFont,
-        logoUrl: data.logoUrl,
-        generatedHtml: '',
-        generatedJson: { date: 'test' },
-        pdfUrl,
-      },
-    });
+    // Prepare data for AI Content Generation
+    const aiInputData: CoreContentInput = {
+      companyName: data.companyName,
+      companyDescription: data.companyDescription,
+      industry: data.industry,
+      targetAudience: data.targetAudience,
+      brandPersonalityKeywords: data.brandPersonalityKeywords,
+      visualStyleKeywords: data.visualStyleKeywords,
+      toneOfVoice: data.toneOfVoice,
+      providedMission: data.missionStatement,
+      providedVision: data.visionStatement,
+    };
+    this.logger.debug('Prepared data for AI content generation:', aiInputData);
+
+    // --- Call AIContentService to generate/retrieve core content ---
+    let generatedContent: CoreContentOutput;
+    try {
+      generatedContent =
+        await this.aiContentService.generateCoreContent(aiInputData);
+      this.logger.log(
+        'Successfully retrieved/generated core content:',
+        generatedContent,
+      );
+    } catch (aiError) {
+      this.logger.error('AI Content Generation failed:', aiError);
+      // Decide how to handle AI failure: proceed with defaults or throw?
+      // For now, let's use simple defaults and proceed
+      generatedContent = {
+        missionStatement:
+          data.missionStatement ||
+          `Default Mission (Service Error) for ${data.companyName}`,
+        visionStatement:
+          data.visionStatement ||
+          `Default Vision (Service Error) for ${data.companyName}`,
+      };
+      this.logger.warn(
+        'Proceeding with default mission/vision after AI error.',
+      );
+    }
+    // --- End AI Call ---
+
+    // Prepare data for Prisma create operation
+    const prismaCreateData: Prisma.BrandbookCreateInput = {
+      user: { connect: { id: userId } },
+      companyName: data.companyName,
+      tagline: data.tagline,
+      industry: data.industry,
+      companyDescription: data.companyDescription,
+      targetAudience: data.targetAudience,
+      brandPersonalityKeywords: data.brandPersonalityKeywords,
+      visualStyleKeywords: data.visualStyleKeywords,
+      toneOfVoice: data.toneOfVoice,
+      missionStatement: generatedContent.missionStatement,
+      visionStatement: generatedContent.visionStatement,
+      logoUrl: logoUrl,
+      brandColorsJson: data.brandColors as unknown as Prisma.InputJsonValue,
+      primaryFontName: data.primaryFontName,
+      secondaryFontName: data.secondaryFontName,
+      contactEmail: data.contactEmail,
+      contactWebsite: data.contactWebsite,
+      contactPhone: data.contactPhone,
+      contactAddress: data.contactAddress,
+    };
+
+    this.logger.debug('Prepared data for Prisma create:', prismaCreateData);
+
+    let createdBrandbook: Brandbook;
+    try {
+      // Step 1: Create the initial brandbook record
+      createdBrandbook = await this.prisma.brandbook.create({
+        data: { ...prismaCreateData, user: { connect: { id: userId } } }, // ensure user connection is passed
+      });
+      this.logger.log(
+        `Brandbook created successfully with ID: ${createdBrandbook.id}`,
+      );
+    } catch (error) {
+      this.logger.error('Error saving brandbook to database', error);
+      if (logoUrl) {
+        try {
+          const publicId = this.getCloudinaryPublicId(logoUrl);
+          if (publicId) {
+            await this.cloudinaryService.deleteFile(publicId);
+            this.logger.log(
+              `Cleaned up uploaded logo (${publicId}) after DB error.`,
+            );
+          }
+        } catch (cleanupError) {
+          this.logger.error(
+            'Failed to clean up logo after DB error',
+            cleanupError,
+          );
+        }
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        this.logger.error(`Prisma Error Code: ${error.code}`);
+      }
+      throw new InternalServerErrorException(
+        'Failed to save initial brandbook data.',
+      );
+    }
+
+    // Step 2: Prepare data and generate PDF Buffer using the TEMPLATE service
+    let pdfBuffer: Buffer;
+    try {
+      this.logger.log(
+        `Preparing data for TEMPLATE PDF generation for brandbook ID: ${createdBrandbook.id}`,
+      );
+
+      // --- Prepare pdfData similar to generatePdf method ---
+      let parsedColors: { name: string; value: string; usageNote?: string }[] =
+        [];
+      if (
+        createdBrandbook.brandColorsJson &&
+        typeof createdBrandbook.brandColorsJson === 'object'
+      ) {
+        try {
+          if (Array.isArray(createdBrandbook.brandColorsJson)) {
+            parsedColors = createdBrandbook.brandColorsJson.filter(
+              (c: any) =>
+                c && typeof c.name === 'string' && typeof c.value === 'string',
+            ) as { name: string; value: string; usageNote?: string }[];
+          }
+        } catch (e) {
+          this.logger.error('Failed to parse brandColorsJson during create', e);
+        }
+      }
+
+      const pdfData = {
+        ...createdBrandbook,
+        brandColors: parsedColors,
+        currentDate: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        currentYear: new Date().getFullYear(),
+      };
+      delete (pdfData as any).brandColorsJson;
+      delete (pdfData as any).generatedJson; // Ensure this is removed if it exists
+      this.logger.debug(
+        `Prepared data for PDF template: ID ${createdBrandbook.id}`,
+      );
+      // --- End pdfData preparation ---
+
+      // Call the Template-based PDF Service
+      pdfBuffer = await this.pdfService.generatePdfFromTemplate(
+        'brandbook-template', // Assuming this is the correct template name
+        pdfData,
+      );
+      this.logger.log(
+        `TEMPLATE PDF Buffer generated successfully for ${createdBrandbook.id}`,
+      );
+    } catch (pdfError) {
+      this.logger.error(
+        `Failed to generate TEMPLATE PDF Buffer for brandbook ID: ${createdBrandbook.id}`,
+        pdfError,
+      );
+      // Still return the created record, just without a PDF link
+      return createdBrandbook;
+    }
+
+    // Step 3: Save PDF Buffer Locally
+    let pdfUrl: string | null = null; // Will store the URL path
+    try {
+      const filename = `${createdBrandbook.id}_${createdBrandbook.companyName.replace(/\s+/g, '_')}_BrandBook.pdf`;
+      const directoryPath = path.join(process.cwd(), 'public', 'pdfs'); // Use process.cwd() for root
+      const filePath = path.join(directoryPath, filename);
+
+      this.logger.log(`Saving PDF buffer locally to: ${filePath}`);
+      await fs.mkdir(directoryPath, { recursive: true }); // Ensure directory exists
+      await fs.writeFile(filePath, pdfBuffer);
+
+      // Generate the URL path for accessing the file via static serving
+      pdfUrl = `/pdfs/${filename}`;
+      this.logger.log(`PDF saved locally. Accessible URL path: ${pdfUrl}`);
+    } catch (saveError) {
+      this.logger.error(
+        `Failed to save PDF buffer locally for brandbook ID: ${createdBrandbook.id}`,
+        saveError,
+      );
+      // PDF generated but not saved. Return record without URL.
+      return createdBrandbook;
+    }
+
+    // Step 4: Update the brandbook record with the local PDF URL Path
+    try {
+      const updatedBrandbook = await this.prisma.brandbook.update({
+        where: { id: createdBrandbook.id },
+        data: { pdfUrl: pdfUrl }, // Save the local URL path
+      });
+      this.logger.log(
+        `Successfully updated brandbook ID: ${createdBrandbook.id} with PDF URL path.`,
+      );
+      return updatedBrandbook; // Return final record including PDF URL path
+    } catch (updateError) {
+      this.logger.error(
+        `Failed to update brandbook ID: ${createdBrandbook.id} with PDF URL path ${pdfUrl}`,
+        updateError,
+      );
+      // Record created, PDF generated and saved, but DB update failed.
+      // Log error, maybe try cleanup? Return original record for now.
+      // TODO: Consider deleting the orphaned local PDF if update fails.
+      return createdBrandbook;
+    }
   }
 
   async findAllByUser(userId: string) {
@@ -84,76 +272,84 @@ export class BrandbookService {
   }
 
   async findOne(id: string, userId: string) {
-    return this.prisma.brandbook.findFirst({
+    const brandbook = await this.prisma.brandbook.findFirst({
       where: { id, userId },
     });
+    if (!brandbook) {
+      throw new NotFoundException('Brandbook not found');
+    }
+    return brandbook;
   }
 
   async delete(id: string, userId: string): Promise<void> {
     this.logger.debug(`Deleting brandbook: ${id} for user: ${userId}`);
-
-    // Find the brandbook and ensure it exists
-    const brandbook = await this.prisma.brandbook.findFirst({
-      where: { id, userId },
-    });
-
-    this.logger.debug('Found brandbook:', brandbook);
-
-    if (!brandbook) {
-      throw new NotFoundException('Brandbook not found');
-    }
+    const brandbook = await this.findOne(id, userId);
+    this.logger.debug('Found brandbook for deletion:', brandbook);
 
     try {
-      // Delete from database first
       await this.prisma.brandbook.delete({
         where: { id },
       });
-
       this.logger.debug('Successfully deleted brandbook from database');
 
-      // Then try to clean up Cloudinary files
-      if (brandbook.logoUrl) {
-        try {
-          const logoPublicId = this.getCloudinaryPublicId(brandbook.logoUrl);
-          if (logoPublicId) {
-            await this.cloudinaryService.deleteFile(logoPublicId);
-            this.logger.debug('Successfully deleted logo from Cloudinary');
-          }
-        } catch (error) {
-          this.logger.error('Error deleting logo from Cloudinary:', error);
-          // Don't throw - we've already deleted from database
-        }
-      }
-
-      if (brandbook.pdfUrl) {
-        try {
-          const pdfPublicId = this.getCloudinaryPublicId(brandbook.pdfUrl);
-          if (pdfPublicId) {
-            await this.cloudinaryService.deleteFile(pdfPublicId);
-            this.logger.debug('Successfully deleted PDF from Cloudinary');
-          }
-        } catch (error) {
-          this.logger.error('Error deleting PDF from Cloudinary:', error);
-          // Don't throw - we've already deleted from database
-        }
-      }
+      await this.cleanupCloudinaryFiles(brandbook);
     } catch (error) {
-      this.logger.error('Error in delete operation:', {
+      this.logger.error('Error during delete operation:', {
         error,
-        brandbook,
+        id,
         userId,
       });
-      throw new BadRequestException(
-        `Failed to delete brandbook: ${error.message}`,
-      );
+      if (!(error instanceof NotFoundException)) {
+        throw new InternalServerErrorException(
+          `Failed to delete brandbook: ${error.message}`,
+        );
+      }
+    }
+  }
+
+  private async cleanupCloudinaryFiles(brandbook: Brandbook) {
+    if (brandbook.logoUrl) {
+      try {
+        const logoPublicId = this.getCloudinaryPublicId(brandbook.logoUrl);
+        if (logoPublicId) {
+          await this.cloudinaryService.deleteFile(logoPublicId);
+          this.logger.debug(`Deleted logo from Cloudinary: ${logoPublicId}`);
+        }
+      } catch (error) {
+        this.logger.error('Error deleting logo from Cloudinary:', {
+          url: brandbook.logoUrl,
+          error,
+        });
+      }
+    }
+    if (brandbook.pdfUrl && !brandbook.pdfUrl.startsWith('http')) {
+      // Simple check for local path
+      try {
+        const localPath = path.join(process.cwd(), 'public', brandbook.pdfUrl);
+        await fs.unlink(localPath);
+        this.logger.debug(`Deleted local PDF file: ${localPath}`);
+      } catch (localDeleteError) {
+        // Log error if deletion fails (e.g., file not found)
+        if (localDeleteError.code !== 'ENOENT') {
+          // Ignore file not found error
+          this.logger.error(
+            `Error deleting local PDF file ${brandbook.pdfUrl}:`,
+            localDeleteError,
+          );
+        }
+      }
     }
   }
 
   private getCloudinaryPublicId(url: string): string | null {
     try {
       if (!url) return null;
-      const matches = url.match(/\/v\d+\/(.+?)\./);
-      return matches ? matches[1] : null;
+      const matches = url.match(/\/v\d+\/(?:logos\/|pdfs\/)?(.+?)(?:\.\w+)?$/);
+      return matches
+        ? matches[1].startsWith('logos/') || matches[1].startsWith('pdfs/')
+          ? matches[1]
+          : null
+        : null;
     } catch (error) {
       this.logger.error('Error extracting Cloudinary public ID:', {
         url,
@@ -165,212 +361,289 @@ export class BrandbookService {
 
   async update(
     id: string,
-    data: Partial<
-      CreateBrandbookDto & { userId: string; logo?: Express.Multer.File }
-    >,
-  ) {
-    this.logger.debug(`Updating brandbook: ${id} for user: ${data.userId}`);
+    data: UpdateBrandbookDto,
+    logoFile: Express.Multer.File | null,
+    userId: string,
+  ): Promise<Brandbook> {
+    this.logger.debug(`Updating brandbook: ${id} for user: ${userId}`);
 
-    const brandbook = await this.findOne(id, data.userId);
-    if (!brandbook) {
-      this.logger.warn(`Brandbook not found: ${id} for user: ${data.userId}`);
-      throw new NotFoundException('Brandbook not found');
+    const existingBrandbook = await this.findOne(id, userId);
+
+    const updatePayload: Prisma.BrandbookUpdateInput = {};
+
+    if (data.companyName !== undefined)
+      updatePayload.companyName = data.companyName;
+    if (data.tagline !== undefined) updatePayload.tagline = data.tagline;
+    if (data.industry !== undefined) updatePayload.industry = data.industry;
+    if (data.companyDescription !== undefined)
+      updatePayload.companyDescription = data.companyDescription;
+    if (data.targetAudience !== undefined)
+      updatePayload.targetAudience = data.targetAudience;
+    if (data.brandPersonalityKeywords !== undefined)
+      updatePayload.brandPersonalityKeywords = data.brandPersonalityKeywords;
+    if (data.visualStyleKeywords !== undefined)
+      updatePayload.visualStyleKeywords = data.visualStyleKeywords;
+    if (data.toneOfVoice !== undefined)
+      updatePayload.toneOfVoice = data.toneOfVoice;
+    if (data.missionStatement !== undefined)
+      updatePayload.missionStatement = data.missionStatement;
+    if (data.visionStatement !== undefined)
+      updatePayload.visionStatement = data.visionStatement;
+    if (data.primaryFontName !== undefined)
+      updatePayload.primaryFontName = data.primaryFontName;
+    if (data.secondaryFontName !== undefined)
+      updatePayload.secondaryFontName = data.secondaryFontName;
+    if (data.contactEmail !== undefined)
+      updatePayload.contactEmail = data.contactEmail;
+    if (data.contactWebsite !== undefined)
+      updatePayload.contactWebsite = data.contactWebsite;
+    if (data.contactPhone !== undefined)
+      updatePayload.contactPhone = data.contactPhone;
+    if (data.contactAddress !== undefined)
+      updatePayload.contactAddress = data.contactAddress;
+
+    if (data.brandColors !== undefined) {
+      updatePayload.brandColorsJson =
+        data.brandColors as unknown as Prisma.InputJsonValue;
+    }
+
+    let newLogoUrl: string | null = null;
+    if (logoFile) {
+      this.logger.debug('New logo provided, uploading...');
+      try {
+        newLogoUrl = await this.cloudinaryService.uploadLogo(logoFile);
+        updatePayload.logoUrl = newLogoUrl;
+        this.logger.debug('New logo uploaded successfully:', newLogoUrl);
+      } catch (uploadError) {
+        this.logger.error(
+          'Error uploading new logo during update:',
+          uploadError,
+        );
+        throw new BadRequestException('Failed to upload new logo.');
+      }
     }
 
     try {
-      const updateData: any = { ...data };
-      delete updateData.logo;
+      const updatedBrandbook = await this.prisma.brandbook.update({
+        where: { id },
+        data: updatePayload,
+      });
+      this.logger.debug(`Successfully updated brandbook: ${id}`);
 
-      // Handle logo update if provided
-      if (data.logo) {
-        this.logger.debug('Uploading new logo to Cloudinary');
-        try {
-          // Upload new logo to Cloudinary
-          const logoUrl = await this.cloudinaryService.uploadLogo(data.logo);
-          updateData.logoUrl = logoUrl;
-          this.logger.debug('Successfully uploaded new logo:', logoUrl);
-
-          // Delete old logo from Cloudinary
-          if (brandbook.logoUrl) {
-            const oldLogoPublicId = this.getCloudinaryPublicId(
-              brandbook.logoUrl,
+      if (newLogoUrl && existingBrandbook.logoUrl) {
+        const oldLogoPublicId = this.getCloudinaryPublicId(
+          existingBrandbook.logoUrl,
+        );
+        if (oldLogoPublicId) {
+          try {
+            await this.cloudinaryService.deleteFile(oldLogoPublicId);
+            this.logger.debug(
+              'Cleaned up old logo from Cloudinary:',
+              oldLogoPublicId,
             );
-            if (oldLogoPublicId) {
-              try {
-                await this.cloudinaryService.deleteFile(oldLogoPublicId);
-                this.logger.debug(
-                  'Successfully deleted old logo from Cloudinary',
-                );
-              } catch (deleteError) {
-                this.logger.error('Error deleting old logo from Cloudinary:', {
-                  error: deleteError,
-                  publicId: oldLogoPublicId,
-                });
-                // Continue with update even if old logo deletion fails
-              }
-            }
+          } catch (deleteError) {
+            this.logger.error(
+              'Error deleting old logo after update:',
+              deleteError,
+            );
           }
-        } catch (uploadError) {
-          this.logger.error('Error uploading new logo:', uploadError);
-          throw new BadRequestException('Failed to upload new logo');
         }
       }
 
-      // Update the brandbook in database
-      const updated = await this.prisma.brandbook.update({
-        where: { id },
-        data: updateData,
-      });
-
-      this.logger.debug(`Successfully updated brandbook: ${id}`);
-      return updated;
+      return updatedBrandbook;
     } catch (error) {
-      this.logger.error('Error updating brandbook:', {
+      this.logger.error('Error updating brandbook in database:', {
         error,
-        brandbook: id,
-        userId: data.userId,
+        id,
+        userId,
       });
-
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
+      if (newLogoUrl) {
+        const publicId = this.getCloudinaryPublicId(newLogoUrl);
+        if (publicId) {
+          try {
+            await this.cloudinaryService.deleteFile(publicId);
+            this.logger.log(
+              `Cleaned up newly uploaded logo (${publicId}) after DB update error.`,
+            );
+          } catch (cleanupError) {
+            this.logger.error(
+              'Failed to clean up new logo after DB update error',
+              cleanupError,
+            );
+          }
+        }
       }
-
-      throw new BadRequestException(
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        this.logger.error(`Prisma Error Code: ${error.code}`);
+      }
+      throw new InternalServerErrorException(
         `Failed to update brandbook: ${error.message}`,
       );
     }
   }
 
-  async generatePdf(id: string, userId: string) {
-    this.logger.debug(
-      `Generating PDF for brandbook: ${id} for user: ${userId}`,
+  async generatePdf(id: string, userId: string): Promise<{ pdfUrl: string }> {
+    this.logger.log(
+      `Initiating LOCAL PDF generation process for brandbook: ${id}, user: ${userId}`,
     );
 
     const brandbook = await this.findOne(id, userId);
-    if (!brandbook) {
-      this.logger.warn(`Brandbook not found: ${id} for user: ${userId}`);
-      throw new NotFoundException('Brandbook not found');
+    this.logger.debug(`Fetched brandbook data for PDF generation: ID ${id}`);
+
+    let parsedColors: { name: string; value: string; usageNote?: string }[] =
+      [];
+    if (
+      brandbook.brandColorsJson &&
+      typeof brandbook.brandColorsJson === 'object'
+    ) {
+      try {
+        if (Array.isArray(brandbook.brandColorsJson)) {
+          parsedColors = brandbook.brandColorsJson.filter(
+            (c: any) =>
+              c && typeof c.name === 'string' && typeof c.value === 'string',
+          ) as { name: string; value: string; usageNote?: string }[];
+          this.logger.debug(
+            `Parsed ${parsedColors.length} brand colors for PDF.`,
+          );
+        }
+      } catch (e) {
+        this.logger.error(
+          `Failed to parse brandColorsJson for brandbook ${id}.`,
+          e,
+        );
+      }
+    } else {
+      this.logger.warn(
+        `No brandColorsJson found or invalid type for brandbook ${id}.`,
+      );
     }
 
+    // Prepare data object for the template
+    const pdfData = {
+      ...brandbook,
+      brandColors: parsedColors,
+      currentDate: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+      currentYear: new Date().getFullYear(),
+    };
+    delete (pdfData as any).brandColorsJson;
+    delete (pdfData as any).generatedJson;
+
+    this.logger.debug(`Prepared data for PDF template: ID ${id}`);
+
+    let pdfBuffer: Buffer;
     try {
-      this.logger.debug('Starting PDF generation process');
-      const pdfBuffer = await this.pdfService.generatePdf(
-        brandbook.generatedHtml,
+      this.logger.log(`Calling PdfService to generate PDF from template...`);
+      pdfBuffer = await this.pdfService.generatePdfFromTemplate(
+        'brandbook-template',
+        pdfData,
       );
+      this.logger.log(
+        `PDF buffer generated successfully for brandbook ${id}. Size: ${pdfBuffer.length} bytes`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `PDF generation from template failed for brandbook ${id}:`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Failed to generate PDF document.',
+      );
+    }
 
-      // Upload PDF to Cloudinary
-      this.logger.debug('Uploading PDF to Cloudinary');
-      try {
-        const pdfUrl = await this.cloudinaryService.uploadPdf(pdfBuffer);
-        this.logger.debug('Successfully uploaded PDF:', pdfUrl);
+    let pdfUrl: string;
+    try {
+      const filename = `${brandbook.id}_${brandbook.companyName.replace(/\s+/g, '_')}_BrandBook.pdf`;
+      const directoryPath = path.join(process.cwd(), 'public', 'pdfs');
+      const filePath = path.join(directoryPath, filename);
 
-        // Delete old PDF if it exists
-        if (brandbook.pdfUrl) {
-          const oldPdfPublicId = this.getCloudinaryPublicId(brandbook.pdfUrl);
-          if (oldPdfPublicId) {
-            try {
-              await this.cloudinaryService.deleteFile(oldPdfPublicId);
-              this.logger.debug('Successfully deleted old PDF from Cloudinary');
-            } catch (deleteError) {
-              this.logger.error('Error deleting old PDF from Cloudinary:', {
-                error: deleteError,
-                publicId: oldPdfPublicId,
-              });
-              // Continue with update even if old PDF deletion fails
-            }
+      this.logger.log(`Saving generated PDF locally to: ${filePath}`);
+      await fs.mkdir(directoryPath, { recursive: true });
+      await fs.writeFile(filePath, pdfBuffer);
+      pdfUrl = `/pdfs/${filename}`;
+      this.logger.log(`PDF saved locally. URL path: ${pdfUrl}`);
+
+      // Cleanup old local PDF if it exists and path is different
+      if (
+        brandbook.pdfUrl &&
+        brandbook.pdfUrl !== pdfUrl &&
+        !brandbook.pdfUrl.startsWith('http')
+      ) {
+        try {
+          const oldLocalPath = path.join(
+            process.cwd(),
+            'public',
+            brandbook.pdfUrl,
+          );
+          await fs.unlink(oldLocalPath);
+          this.logger.debug(`Cleaned up old local PDF: ${oldLocalPath}`);
+        } catch (cleanupError) {
+          if (cleanupError.code !== 'ENOENT') {
+            this.logger.error(
+              'Failed to clean up old local PDF:',
+              cleanupError,
+            );
           }
         }
-
-        // Update brandbook with new PDF URL
-        const updated = await this.prisma.brandbook.update({
-          where: { id },
-          data: { pdfUrl },
-        });
-
-        this.logger.debug(
-          `Successfully generated and stored PDF for brandbook: ${id}`,
-        );
-        return updated;
-      } catch (uploadError) {
-        this.logger.error('Error uploading PDF to Cloudinary:', {
-          error: uploadError,
-          brandbook: id,
-          userId,
-        });
-        throw new BadRequestException('Failed to upload generated PDF');
       }
     } catch (error) {
-      this.logger.error('Error generating PDF:', {
-        error,
-        brandbook: id,
-        userId,
-      });
-
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-
-      throw new BadRequestException(`Failed to generate PDF: ${error.message}`);
-    }
-  }
-
-  async regenerateWithAI(id: string, userId: string) {
-    const brandbook = await this.findOne(id, userId);
-    if (!brandbook) {
-      throw new NotFoundException('Brandbook not found');
+      this.logger.error(`Local PDF saving failed for brandbook ${id}:`, error);
+      throw new InternalServerErrorException(
+        'Failed to save PDF file locally.',
+      );
     }
 
-    // Generate new content
-    const content = this.mockContentService.generateMockContent({
-      companyName: brandbook.companyName,
-      tagline: brandbook.tagline,
-      industry: brandbook.industry,
-      description: brandbook.description,
-      authorName: brandbook.authorName,
-      authorRole: brandbook.authorRole,
-      authorEmail: brandbook.authorEmail,
-      preferredColor: brandbook.preferredColor,
-      preferredFont: brandbook.preferredFont,
-    });
-
-    // Generate new HTML
-    const html = this.templateService.generateHTML(content, brandbook);
-
-    // Generate new PDF and upload to Cloudinary
-    const pdfUrl = await this.generatePdfFromHtml(html);
-
-    // Delete old PDF from Cloudinary
     try {
-      if (brandbook.pdfUrl) {
-        const publicId = brandbook.pdfUrl
-          .split('/')
-          .slice(-2)
-          .join('/')
-          .split('.')[0];
-        await this.cloudinaryService.deleteFile(`brandbook/${publicId}`);
-      }
+      this.logger.log(
+        `Updating brandbook ${id} with new local PDF URL path...`,
+      );
+      await this.prisma.brandbook.update({
+        where: { id },
+        data: { pdfUrl: pdfUrl },
+      });
+      this.logger.log(
+        `Brandbook ${id} updated successfully with PDF URL path: ${pdfUrl}`,
+      );
     } catch (error) {
-      console.error('Error deleting old PDF from Cloudinary:', error);
+      this.logger.error(
+        `Failed to update brandbook ${id} with PDF URL path:`,
+        error,
+      );
+      // Consider deleting the newly saved file if DB update fails
+      try {
+        const localPath = path.join(process.cwd(), 'public', pdfUrl);
+        await fs.unlink(localPath);
+        this.logger.warn(
+          `Cleaned up newly saved local PDF (${localPath}) after DB update failure.`,
+        );
+      } catch (finalCleanupError) {
+        this.logger.error(
+          'CRITICAL: Failed to cleanup newly saved local PDF after DB update failure.',
+          finalCleanupError,
+        );
+      }
+      throw new InternalServerErrorException(
+        'Failed to save PDF URL path to brandbook record.',
+      );
     }
 
-    // Update database
-    return this.prisma.brandbook.update({
-      where: { id },
-      data: {
-        generatedHtml: html,
-        generatedJson: content,
-        pdfUrl,
-      },
-    });
+    return { pdfUrl };
   }
 
-  async uploadPdf(html: string): Promise<Buffer> {
-    return await this.pdfService.generatePdf(html);
+  async regenerateWithAI(
+    id: string,
+    userId: string,
+  ): Promise<{ pdfUrl: string }> {
+    this.logger.log(
+      `Initiating LOCAL PDF RE-generation for brandbook ID: ${id}, user: ${userId}`,
+    );
+    const result = await this.generatePdf(id, userId);
+    this.logger.log(
+      `PDF LOCAL regeneration completed for brandbook ${id}. New URL path: ${result.pdfUrl}`,
+    );
+    return result;
   }
 }

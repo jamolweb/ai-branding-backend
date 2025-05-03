@@ -1,0 +1,730 @@
+<!-- Brandbook Template -->
+
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <!-- Include Google Fonts (Inter used here) -->
+    <link rel='preconnect' href='https://fonts.googleapis.com' />
+    <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin />
+    <link
+      href='https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap'
+      rel='stylesheet'
+    />
+
+    <title>{{companyName}} Brand Book</title>
+    <style
+    >
+      /* Global Styles */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', sans-serif;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background-color: #f0f0f0; /* BG for viewing HTML */
+        counter-reset: page; /* Initialize page counter */
+      }
+      .page {
+        width: 210mm;
+        min-height: 297mm;
+        height: auto;
+        page-break-after: always;
+        box-sizing: border-box;
+        background-color: #ffffff;
+        position: relative;
+        overflow: hidden;
+      }
+      .page:last-child {
+        page-break-after: avoid;
+      }
+
+      /* -- Header/Footer Styles -- */
+      .page-header,
+      .page-footer {
+        position: absolute;
+        left: 20mm;
+        right: 20mm;
+        font-size: 9px;
+        color: #888888;
+        font-weight: 400;
+      }
+      .page-header {
+        top: 10mm;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .page-footer {
+        bottom: 10mm;
+        display: flex;
+        justify-content: space-between;
+        border-top: 1px solid #eeeeee; /* Separator line */
+        padding-top: 5mm;
+      }
+      .page-footer .page-number::before {
+        content: 'Page ' counter(page);
+        counter-increment: page;
+      }
+
+      /* -- Common Page Title Styles -- */
+      h1.page-title {
+        font-size: 36px;
+        font-weight: 900;
+        color: #141414;
+        margin: 0 0 5mm 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .title-line {
+        width: 50px;
+        height: 3px;
+        background-color: #efff76; /* Accent color */
+        margin-bottom: 15mm;
+      }
+      .page-content-wrapper {
+        padding: 30mm 20mm 30mm 20mm;
+      }
+      .page .section {
+        margin-bottom: 15mm;
+      }
+      .page .section h2 {
+        font-size: 20px;
+        font-weight: 700; /* Bold */
+        color: #141414;
+        margin: 0 0 5mm 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .page .section p {
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 0;
+        color: #333333;
+      }
+
+      /* -- Cover Page Styles -- */
+      .cover-page {
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        background: linear-gradient(to bottom right, #1e1e1e, #141414);
+        color: #ffffff;
+      }
+      .cover-page .content-wrapper {
+        padding: 40mm 20mm;
+        width: 100%;
+        box-sizing: border-box;
+        position: relative;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      .cover-page h1.brand-book-title {
+        font-size: 60px;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        margin: 0 0 20px 0;
+        color: #efff76;
+        text-transform: uppercase;
+      }
+      .cover-page h2.company-name {
+        font-size: 48px;
+        font-weight: 700;
+        margin: 0 0 15px 0;
+        text-transform: uppercase;
+        color: #ffffff;
+      }
+      .cover-page p.tagline {
+        font-size: 20px;
+        font-weight: 400;
+        margin: 0 0 60px 0;
+        color: #a0a0a0;
+        max-width: 60%;
+      }
+      .cover-page .prepared-for {
+        font-size: 12px;
+        font-weight: 400;
+        color: #a0a0a0;
+        margin-top: auto;
+        padding-top: 50px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .cover-page .prepared-for-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #ffffff;
+        margin-top: 5px;
+        text-transform: none;
+      }
+      .cover-page::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 10mm;
+        background-color: #efff76;
+      }
+
+      /* -- Introduction/Overview Page Styles -- */
+      .intro-page .page-content-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: calc(297mm - 60mm); /* Full height minus padding */
+      }
+      .intro-page p.description {
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 0;
+      }
+      .intro-page .logo-container {
+        margin-top: auto; /* Push to bottom */
+        padding-top: 20mm;
+        text-align: right;
+      }
+      .intro-page .logo-container img {
+        max-width: 60mm;
+        max-height: 30mm;
+        object-fit: contain;
+      }
+
+      /* -- Mission / Vision Page Styles -- */
+      /* Uses common section styles */
+
+      /* -- Logo Guidelines Page Styles -- */
+      .logo-page .logo-display-area {
+        background-color: #f8f8f8;
+        padding: 20mm;
+        margin-bottom: 15mm;
+        text-align: center;
+        border: 1px solid #eeeeee;
+        min-height: 80mm;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .logo-page .logo-display-area img {
+        max-width: 80%;
+        max-height: 60mm;
+        object-fit: contain;
+      }
+      .logo-page .guideline-section {
+        margin-bottom: 10mm;
+      }
+      .logo-page .guideline-section h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: #333333;
+        margin: 0 0 3mm 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .logo-page .guideline-section p {
+        font-size: 12px;
+        line-height: 1.6;
+        margin: 0 0 5mm 0;
+        color: #555555;
+      }
+
+      /* -- Color Palette Page Styles -- */
+      .color-page .color-grid {
+        display: grid;
+        grid-template-columns: repeat(
+          auto-fill,
+          minmax(100px, 1fr)
+        ); /* Responsive grid */
+        gap: 15mm;
+      }
+      .color-page .color-item {
+        display: flex;
+        flex-direction: column;
+      }
+      .color-page .color-swatch {
+        width: 100%;
+        height: 80px; /* Adjust height as needed */
+        border: 1px solid #eeeeee;
+        margin-bottom: 5mm;
+      }
+      .color-page .color-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #141414;
+        margin-bottom: 2mm;
+        text-transform: capitalize; /* Nicer display for names like 'primary' */
+      }
+      .color-page .color-value {
+        font-size: 11px;
+        font-family: monospace; /* Good for hex codes */
+        color: #555555;
+        margin-bottom: 3mm;
+        text-transform: uppercase;
+      }
+      .color-page .color-usage {
+        font-size: 11px;
+        color: #666666;
+        line-height: 1.4;
+      }
+
+      /* -- Typography Page Styles -- */
+      .typography-page .font-section {
+        margin-bottom: 15mm;
+      }
+      .typography-page .font-section h2 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #141414;
+        margin: 0 0 8mm 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .typography-page .font-display {
+        font-size: 36px; /* Large display size */
+        margin-bottom: 5mm;
+        line-height: 1.2;
+      }
+      .typography-page .font-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #333333;
+        margin-bottom: 5mm;
+      }
+      .typography-page .font-sample {
+        font-size: 12px;
+        color: #555555;
+        line-height: 1.6;
+        margin-bottom: 8mm;
+      }
+      .typography-page .font-guidelines p {
+        font-size: 12px;
+        line-height: 1.6;
+        margin: 0 0 5mm 0;
+        color: #555555;
+      }
+      /* Specific font families need to be applied carefully */
+      /* We might need to load more fonts or rely on user having them */
+      .font-primary-display, .font-primary-sample {
+        /* Attempt to apply - might need JS or better CSS font loading */
+        font-family: '{{primaryFontName}}', 'Inter', sans-serif; 
+      }
+      .font-secondary-display, .font-secondary-sample {
+        /* Attempt to apply */
+        font-family: '{{secondaryFontName}}', 'Inter', sans-serif;
+      }
+
+      /* -- Tone of Voice Page Styles -- */
+      .tone-page .section {
+        margin-bottom: 15mm;
+      }
+      .tone-page .section h2 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #141414;
+        margin: 0 0 5mm 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .tone-page .section p {
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 0 0 8mm 0;
+        color: #333333;
+      }
+      .tone-page .keywords-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 8mm 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .tone-page .keywords-list li {
+        background-color: #F8F8F8;
+        border: 1px solid #EEEEEE;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 13px;
+        color: #333333;
+      }
+      .tone-page .guidelines-list {
+        list-style: disc;
+        padding-left: 20px;
+        margin: 0;
+        font-size: 13px;
+        color: #555555;
+        line-height: 1.7;
+      }
+      .tone-page .guidelines-list li {
+        margin-bottom: 2mm;
+      }
+
+      /* -- Contact Page Styles -- */
+      .contact-page {
+        padding: 30mm 20mm 30mm 20mm; 
+        display: flex;
+        flex-direction: column;
+        color: #141414;
+      }
+       .contact-page .contact-details {
+           margin-top: 15mm;
+           font-size: 14px;
+           line-height: 1.8;
+           color: #333333;
+       }
+       .contact-page .contact-details strong {
+           font-weight: 700;
+           color: #141414;
+           min-width: 80px; /* Align labels */
+           display: inline-block;
+       }
+        .contact-page .contact-details a {
+            color: #141414;
+            text-decoration: none;
+            border-bottom: 1px solid #EFFF76; /* Accent underline */
+        }
+         .contact-page .contact-details a:hover {
+             color: #000000;
+             border-bottom-color: #141414;
+         }
+        .contact-page .contact-address p {
+           margin: 0;
+           line-height: 1.6;
+        }
+      .contact-page .qr-code-container {
+           margin-top: auto; /* Push to bottom */
+           padding-top: 20mm;
+           text-align: center;
+      }
+       .contact-page .qr-code-container img {
+           max-width: 40mm;
+           max-height: 40mm;
+           border: 5px solid #EFFF76; /* Accent border */
+           padding: 5px;
+           background: white;
+       }
+        .contact-page .qr-code-container p {
+            font-size: 10px;
+            color: #888888;
+            margin-top: 3mm;
+        }
+
+    </style>
+  </head>
+  <body>
+    <!-- ========= PAGE 1: COVER ========= -->
+    <div class='page cover-page'>
+      <div class='content-wrapper'>
+        <h1 class='brand-book-title'>Brand Book</h1>
+        <h2 class='company-name'>{{companyName}}</h2>
+        {{#if tagline}}
+          <p class='tagline'>{{tagline}}</p>
+        {{/if}}
+        <div class='prepared-for'>
+          Prepared For
+          <div class='prepared-for-name'>{{companyName}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========= PAGE 2: INTRODUCTION ========= -->
+    <div class='page intro-page'>
+      <div class='page-header'>{{companyName}} / Brand Guidelines</div>
+      <div class='page-content-wrapper'>
+        <h1 class='page-title'>Introduction</h1>
+        <div class='title-line'></div>
+        <p class='description'>{{{companyDescription}}}</p>
+
+        {{#if logoUrl}}
+          <div class='logo-container'>
+            <img src='{{logoUrl}}' alt='{{companyName}} Logo' />
+          </div>
+        {{/if}}
+      </div>
+      <div class='page-footer'>
+        <span class='copyright'>&copy;
+          {{currentYear}}
+          {{companyName}}. All rights reserved.</span>
+        <span class='page-number'></span>
+      </div>
+    </div>
+
+    <!-- ========= PAGE 3: MISSION / VISION ========= -->
+    <div class='page mission-vision-page'>
+      <div class='page-header'>{{companyName}} / Brand Guidelines</div>
+      <div class='page-content-wrapper'>
+        <h1 class='page-title'>Our Purpose</h1>
+        <div class='title-line'></div>
+
+        {{#if missionStatement}}
+          <div class='section mission-section'>
+            <h2>Mission</h2>
+            <p>{{{missionStatement}}}</p>
+          </div>
+        {{/if}}
+
+        {{#if visionStatement}}
+          <div class='section vision-section'>
+            <h2>Vision</h2>
+            <p>{{{visionStatement}}}</p>
+          </div>
+        {{/if}}
+
+        <!-- Placeholder for Core Values -->
+
+      </div>
+      <div class='page-footer'>
+        <span class='copyright'>&copy;
+          {{currentYear}}
+          {{companyName}}. All rights reserved.</span>
+        <span class='page-number'></span>
+      </div>
+    </div>
+
+    <!-- ========= PAGE 4: LOGO GUIDELINES ========= -->
+    <div class='page logo-page'>
+      <div class='page-header'>{{companyName}} / Brand Guidelines</div>
+      <div class='page-content-wrapper'>
+        <h1 class='page-title'>Logo Guidelines</h1>
+        <div class='title-line'></div>
+
+        <div class='logo-display-area'>
+          {{#if logoUrl}}
+            <img src='{{logoUrl}}' alt='Primary {{companyName}} Logo' />
+          {{else}}
+            <p>Logo not available.</p>
+          {{/if}}
+        </div>
+
+        <div class='guideline-section'>
+          <h3>Primary Logo</h3>
+          <p>This is the primary logo and should be used whenever possible.
+            Ensure proper clear space is maintained around the logo, equal to
+            the height of the primary logomark element.</p>
+        </div>
+
+        <div class='guideline-section'>
+          <h3>Clear Space</h3>
+          <p>Maintain a minimum clear space around the logo to ensure its
+            visibility and impact. No other elements (text, images, etc.) should
+            infringe upon this space. The clear space is defined by the height
+            'X' of the main symbol.</p>
+        </div>
+
+        <div class='guideline-section'>
+          <h3>Minimum Size</h3>
+          <p>To ensure legibility, the logo should not be reproduced smaller
+            than 20mm in width for print applications or 75px wide for digital
+            applications.</p>
+        </div>
+      </div>
+      <div class='page-footer'>
+        <span class='copyright'>&copy;
+          {{currentYear}}
+          {{companyName}}. All rights reserved.</span>
+        <span class='page-number'></span>
+      </div>
+    </div>
+
+    <!-- ========= PAGE 5: COLOR PALETTE ========= -->
+    <div class='page color-page'>
+      <div class='page-header'>{{companyName}} / Brand Guidelines</div>
+      <div class='page-content-wrapper'>
+        <h1 class='page-title'>Color Palette</h1>
+        <div class='title-line'></div>
+
+        <div class='color-grid'>
+          {{#each brandColors}}
+            <div class='color-item'>
+              <div
+                class='color-swatch'
+                style='background-color: {{this.value}};'
+              ></div>
+              <div class='color-name'>{{this.name}}</div>
+              <div class='color-value'>{{this.value}}</div>
+              {{#if this.usageNote}}
+                <div class='color-usage'>{{{this.usageNote}}}</div>
+              {{/if}}
+            </div>
+          {{else}}
+            <p>No brand colors defined.</p>
+          {{/each}}
+        </div>
+
+      </div>
+      <div class='page-footer'>
+        <span class='copyright'>&copy;
+          {{currentYear}}
+          {{companyName}}. All rights reserved.</span>
+        <span class='page-number'></span>
+      </div>
+    </div>
+
+    <!-- ========= PAGE 6: TYPOGRAPHY ========= -->
+    <div class='page typography-page'>
+      <div class='page-header'>{{companyName}} / Brand Guidelines</div>
+      <div class='page-content-wrapper'>
+        <h1 class='page-title'>Typography</h1>
+        <div class='title-line'></div>
+
+        {{#if primaryFontName}}
+          <div class='font-section primary-font'>
+            <h2>Primary Font</h2>
+            <div
+              class='font-display font-primary-display'
+            >{{primaryFontName}}</div>
+            <div class='font-name font-primary-display'>Aa Bb Cc Dd Ee Ff Gg Hh
+              Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz</div>
+            <div class='font-sample font-primary-sample'>0123456789</div>
+            <div
+              class='font-sample font-primary-sample'
+            >ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+            <div class='font-guidelines'>
+              <p><strong>Usage:</strong>
+                Ideal for headlines, key messages, and primary brand
+                communication. Ensure sufficient weight variation is available
+                and used appropriately.</p>
+            </div>
+          </div>
+        {{/if}}
+
+        {{#if secondaryFontName}}
+          <div class='font-section secondary-font'>
+            <h2>Secondary Font</h2>
+            <div
+              class='font-display font-secondary-display'
+            >{{secondaryFontName}}</div>
+            <div class='font-name font-secondary-display'>Aa Bb Cc Dd Ee Ff Gg
+              Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz</div>
+            <div class='font-sample font-secondary-sample'>0123456789</div>
+            <div
+              class='font-sample font-secondary-sample'
+            >ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+            <div class='font-guidelines'>
+              <p><strong>Usage:</strong>
+                Suitable for body text, captions, and supporting information
+                where readability is key. Choose a font that complements the
+                primary font.</p>
+            </div>
+          </div>
+        {{else}}
+          {{#unless primaryFontName}}
+            <p>No typography information defined.</p>
+          {{/unless}}
+        {{/if}}
+
+      </div>
+      <div class='page-footer'>
+        <span class='copyright'>&copy;
+          {{currentYear}}
+          {{companyName}}. All rights reserved.</span>
+        <span class='page-number'></span>
+      </div>
+    </div>
+
+    <!-- ========= PAGE 7: TONE OF VOICE ========= -->
+    <div class='page tone-page'>
+      <div class='page-header'>{{companyName}} / Brand Guidelines</div>
+      <div class='page-content-wrapper'>
+        <h1 class='page-title'>Tone of Voice</h1>
+        <div class='title-line'></div>
+
+        <div class='section description-section'>
+          <p>Our brand voice reflects our personality and how we communicate
+            with our audience. It should be consistent across all platforms and
+            materials.</p>
+        </div>
+
+        {{#if toneOfVoice}}
+          <div class='section keywords-section'>
+            <h2>Key Characteristics</h2>
+            <!-- Use the registered 'split' helper -->
+            <!-- Assumes toneOfVoice is comma-separated -->
+            <ul class='keywords-list'>
+              {{#each (split toneOfVoice ',')}}
+                <li>{{this}}</li>
+                <!-- 'split' helper now also trims -->
+              {{else}}
+                <li>No specific characteristics provided.</li>
+              {{/each}}
+            </ul>
+          </div>
+        {{/if}}
+
+        <div class='section guidelines-section'>
+          <h2>Guidelines</h2>
+          <ul class='guidelines-list'>
+            <li>Be clear, concise, and easy to understand.</li>
+            <li>Avoid jargon and overly technical terms where possible.</li>
+            <li>Maintain a positive and helpful attitude.</li>
+            <li>Address the audience directly and empathetically.</li>
+            <li>Ensure consistency with the defined brand personality keywords.</li>
+          </ul>
+        </div>
+
+      </div>
+      <div class='page-footer'>
+        <span class='copyright'>&copy;
+          {{currentYear}}
+          {{companyName}}. All rights reserved.</span>
+        <span class='page-number'></span>
+      </div>
+    </div>
+
+    <!-- ========= PAGE 8: CONTACT INFORMATION ========= -->
+    <div class='page contact-page'>
+      <div class='page-header'>{{companyName}} / Brand Guidelines</div>
+      <div class='page-content-wrapper'>
+        <h1 class='page-title'>Contact Us</h1>
+        <div class='title-line'></div>
+
+        <div class='contact-details'>
+          {{#if contactEmail}}
+            <p><strong>Email:</strong>
+              <a href='mailto:{{contactEmail}}'>{{contactEmail}}</a></p>
+          {{/if}}
+          {{#if contactWebsite}}
+            <p><strong>Website:</strong>
+              <a
+                href='{{contactWebsite}}'
+                target='_blank'
+              >{{contactWebsite}}</a></p>
+          {{/if}}
+          {{#if contactPhone}}
+            <p><strong>Phone:</strong> {{contactPhone}}</p>
+          {{/if}}
+          {{#if contactAddress}}
+            <div class='contact-address'>
+              <p><strong>Address:</strong></p>
+              <!-- Requires Handlebars helper to replace \n with <br> -->
+              <p>{{{multiline contactAddress}}}</p>
+            </div>
+          {{/if}}
+        </div>
+
+        <!-- Optional QR Code Placeholder -->
+        <!-- 
+            {{#if contactQrCodeUrl}}
+            <div class="qr-code-container">
+                 <img src="{{contactQrCodeUrl}}" alt="Contact QR Code">
+                 <p>Scan for contact details</p>
+            </div>
+             {{/if}}
+            -->
+
+      </div>
+      <div class='page-footer'>
+        <span class='copyright'>&copy;
+          {{currentYear}}
+          {{companyName}}. All rights reserved.</span>
+        <span class='page-number'></span>
+      </div>
+    </div>
+
+  </body>
+</html>

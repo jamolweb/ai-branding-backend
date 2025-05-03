@@ -5,10 +5,15 @@ import { BrandbookContent } from '../interfaces/brandbook-content.interface';
 @Injectable()
 export class MockContentService {
   generateMockContent(input: CreateBrandbookDto): BrandbookContent {
+    const primaryColor =
+      input.brandColors && input.brandColors.length > 0
+        ? input.brandColors[0].value
+        : '#0066CC';
+
     return {
       typography: {
-        primaryFont: input.preferredFont || 'Helvetica Neue',
-        secondaryFont: 'Arial',
+        primaryFont: input.primaryFontName || 'Helvetica Neue',
+        secondaryFont: input.secondaryFontName || 'Arial',
         fontUsageGuidelines: [
           'Use primary font for headlines and important text',
           'Use secondary font for body text and longer content',
@@ -16,7 +21,7 @@ export class MockContentService {
         ],
       },
       colorPalette: {
-        primary: input.preferredColor || '#0066CC',
+        primary: primaryColor,
         secondary: '#2E4057',
         accent: '#FF6B6B',
         neutral: ['#F8F9FA', '#E9ECEF', '#DEE2E6', '#CED4DA'],
@@ -27,10 +32,15 @@ export class MockContentService {
         ],
       },
       brandIdentity: {
-        mission: `To revolutionize ${input.industry} through innovative solutions that empower businesses and individuals.`,
-        vision: `To become the leading force in ${input.industry}, setting new standards for excellence and customer satisfaction.`,
+        mission:
+          input.missionStatement || `Default mission for ${input.companyName}.`,
+        vision:
+          input.visionStatement || `Default vision for ${input.companyName}.`,
         values: ['Innovation', 'Integrity', 'Customer Focus', 'Excellence'],
-        personality: ['Professional', 'Innovative', 'Trustworthy', 'Dynamic'],
+        personality: input.brandPersonalityKeywords
+          ?.split(',')
+          .map((k) => k.trim())
+          .filter(Boolean) || ['Professional', 'Innovative'],
       },
       logoGuidelines: {
         minimumSize: '30px height for digital, 10mm for print',
@@ -49,7 +59,10 @@ export class MockContentService {
         },
       },
       voiceTone: {
-        characteristics: ['Professional', 'Approachable', 'Clear', 'Confident'],
+        characteristics: input.toneOfVoice
+          ?.split(',')
+          .map((k) => k.trim())
+          .filter(Boolean) || ['Professional', 'Clear'],
         examples: {
           formal: `${input.companyName} is committed to delivering exceptional value through innovative solutions.`,
           casual: `We're here to help you succeed with cutting-edge tools and support.`,

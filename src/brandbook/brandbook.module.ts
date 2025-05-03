@@ -11,9 +11,10 @@ import { MockContentService } from './services/mock-content.service';
 import { PdfService } from './services/pdf.service';
 import { SimplePdfGeneratorService } from './services/simple-pdf-generator.service';
 import { TemplateService } from './services/template.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [AuthModule, CloudinaryModule, GeminiModule],
+  imports: [AuthModule, CloudinaryModule, GeminiModule, HttpModule],
   controllers: [BrandbookController],
   providers: [
     BrandbookService,

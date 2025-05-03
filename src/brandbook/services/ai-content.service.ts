@@ -31,6 +31,23 @@ interface AIBrandContent {
   }>;
 }
 
+export interface CoreContentInput {
+  companyName: string;
+  companyDescription: string;
+  industry: string;
+  targetAudience: string;
+  brandPersonalityKeywords: string;
+  visualStyleKeywords: string;
+  toneOfVoice: string;
+  providedMission?: string | null;
+  providedVision?: string | null;
+}
+
+export interface CoreContentOutput {
+  missionStatement: string;
+  visionStatement: string;
+}
+
 @Injectable()
 export class AIContentService {
   private readonly logger = new Logger(AIContentService.name);
@@ -198,120 +215,119 @@ Make all content professional, modern, and specific to the ${industry} industry.
     return {
       description: `${companyName} is an innovative ${industry} company committed to delivering exceptional value to its customers through cutting-edge solutions and outstanding service.`,
       mission: `To revolutionize the ${industry} industry by providing innovative solutions that empower our customers to achieve their goals.`,
-      vision: `To become the leading ${industry} company known for excellence, innovation, and customer satisfaction.`,
+      vision: `To be the leading provider of ${industry} solutions globally, recognized for our commitment to innovation, quality, and customer satisfaction.`,
       coreValues: [
-        'Innovation and Excellence',
-        'Customer-Centric Approach',
-        'Integrity and Trust',
-        'Continuous Improvement',
+        'Innovation: Continuously seeking new ways to improve and disrupt the status quo.',
+        'Integrity: Upholding the highest ethical standards in all our interactions.',
+        'Customer Focus: Placing our customers at the center of everything we do.',
+        'Excellence: Striving for the highest quality in our products and services.',
       ],
       visualStyle:
-        'Modern, professional, and minimalist design with a focus on clarity and impact.',
-      brandVoice:
-        'Professional, confident, and approachable, reflecting our expertise and commitment to customer success.',
+        'Modern, clean, professional, with a focus on clarity and approachability.',
+      brandVoice: 'Knowledgeable, helpful, confident, and inspiring.',
       applicationExamples:
-        'Brand applications include corporate stationery, digital presence, marketing materials, and customer touchpoints.',
-      visualExample:
-        'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg',
+        'Website, mobile app, social media profiles, marketing brochures, presentations, email signatures, business cards, letterheads, internal documents, merchandise.',
       typography: {
         description:
-          'Clean, modern typography that emphasizes readability and professionalism.',
+          'Utilize clean, readable sans-serif fonts like Inter or Lato for primary text, complemented by a distinct serif or display font for headings.',
         guidelines: [
-          'Use Poppins as the primary font family',
-          'Maintain consistent heading hierarchy',
-          'Ensure adequate contrast and spacing',
-          'Keep text aligned and balanced',
+          'Maintain consistent font weights and sizes across applications.',
+          'Ensure sufficient contrast between text and background.',
+          'Use typography hierarchy to guide the reader.',
+          'Avoid excessive use of different font styles.',
         ],
       },
       voiceTone: {
         characteristics: [
           {
             trait: 'Professional',
-            description:
-              'Clear, competent, and authoritative while remaining accessible',
+            description: 'Maintain a knowledgeable and expert tone.',
           },
           {
-            trait: 'Innovative',
-            description:
-              'Forward-thinking and solution-oriented in communication',
+            trait: 'Approachable',
+            description: 'Be friendly, helpful, and easy to understand.',
           },
           {
-            trait: 'Trustworthy',
-            description:
-              'Reliable, transparent, and honest in all interactions',
+            trait: 'Confident',
+            description: 'Communicate with assurance and clarity.',
           },
           {
-            trait: 'Empathetic',
-            description: 'Understanding and responsive to customer needs',
+            trait: 'Inspiring',
+            description: 'Motivate and encourage positive action.',
           },
         ],
         guidelines: [
-          'Use clear, concise language',
-          'Maintain a positive and solution-focused tone',
-          'Be consistent across all communications',
-          'Address audience needs directly',
-          'Balance professionalism with approachability',
+          'Use clear and concise language.',
+          'Avoid jargon where possible, or explain it clearly.',
+          'Address the target audience directly.',
+          'Maintain a positive and optimistic outlook.',
+          'Ensure consistency across all communication channels.',
         ],
       },
       visualGuidelines: {
         photography: [
           {
-            title: 'Lighting',
+            title: 'Authentic',
             description:
-              'Natural, bright lighting that creates a clean and professional atmosphere',
+              'Use genuine photos of people and processes, avoid generic stock images.',
           },
           {
-            title: 'Composition',
+            title: 'Bright & Clean',
             description:
-              'Clean, uncluttered compositions with clear focal points',
+              'Favor well-lit environments with natural light where possible.',
           },
           {
-            title: 'Style',
+            title: 'Focused',
             description:
-              'Modern and professional imagery that reflects industry expertise',
+              'Highlight key subjects or messages clearly within the composition.',
           },
         ],
         imagery: [
-          'Use high-quality, professional imagery',
-          'Maintain consistent style across all materials',
-          'Ensure images reflect brand values',
-          'Keep visual elements clean and uncluttered',
+          'Utilize high-quality icons and illustrations that align with the brand style.',
+          'Ensure graphics are clean, modern, and easily understandable.',
+          'Maintain consistent color usage according to the palette.',
+          'Use data visualizations effectively to communicate complex information.',
         ],
       },
       applications: [
         {
-          category: 'Digital Presence',
-          description: 'Cohesive online brand representation',
-          items: ['Website', 'Social Media', 'Email Templates', 'Digital Ads'],
-        },
-        {
-          category: 'Print Materials',
-          description: 'Professional physical brand materials',
+          category: 'Digital',
+          description: 'Online presence and user interfaces.',
           items: [
-            'Business Cards',
-            'Letterheads',
-            'Brochures',
-            'Presentations',
+            'Website Design',
+            'Mobile App UI/UX',
+            'Social Media Graphics',
+            'Email Templates',
           ],
         },
         {
-          category: 'Marketing Collateral',
-          description: 'Engaging promotional materials',
+          category: 'Print',
+          description: 'Physical marketing and communication materials.',
           items: [
-            'Product Catalogs',
-            'Banners',
-            'Promotional Items',
-            'Event Materials',
+            'Brochures & Flyers',
+            'Business Cards',
+            'Letterheads',
+            'Posters',
+          ],
+        },
+        {
+          category: 'Marketing',
+          description: 'Promotional and advertising materials.',
+          items: [
+            'Ad Banners',
+            'Presentation Decks',
+            'Trade Show Booths',
+            'Case Studies',
           ],
         },
         {
           category: 'Brand Assets',
-          description: 'Core brand identity elements',
+          description: 'Core visual elements and internal use.',
           items: [
             'Logo Variations',
-            'Icon Set',
-            'Photography Style',
-            'Illustration Style',
+            'Iconography Set',
+            'Internal Templates',
+            'Brand Style Guide Document',
           ],
         },
       ],
@@ -353,10 +369,25 @@ Make all content professional, modern, and specific to the ${industry} industry.
         },
       );
 
-      const content = response.data.choices[0].message.content.trim();
+      const rawContent = response.data.choices[0].message.content.trim();
+      let jsonContent = rawContent;
+
+      // Updated regex to find content between ```json and ```
+      const jsonMatch = rawContent.match(/```json\s*([\s\S]+?)\s*```/);
+      if (jsonMatch && jsonMatch[1]) {
+        jsonContent = jsonMatch[1].trim();
+        this.logger.debug('Extracted JSON content from markdown fences.');
+      } else {
+        // Fallback attempt: If no fences, assume the whole string might be JSON (or fail parsing)
+        this.logger.debug(
+          'No markdown fences detected, attempting to parse raw content.',
+        );
+      }
+
+      this.logger.debug(`Attempting to parse content: ${jsonContent}`);
 
       try {
-        const colors = JSON.parse(content);
+        const colors = JSON.parse(jsonContent);
         if (
           !Array.isArray(colors) ||
           colors.length !== 5 ||
@@ -540,6 +571,154 @@ Make all content professional, modern, and specific to the ${industry} industry.
         'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg',
         'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg',
       ];
+    }
+  }
+
+  async generateCoreContent(
+    input: CoreContentInput,
+  ): Promise<CoreContentOutput> {
+    this.logger.log(`Generating core content for ${input.companyName}`);
+    const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
+    if (!apiKey) {
+      this.logger.error('Deepseek API key not configured.');
+      throw new Error('AI service configuration error.');
+    }
+
+    let missionToGenerate = !input.providedMission;
+    let visionToGenerate = !input.providedVision;
+
+    // If both are provided, return them directly
+    if (!missionToGenerate && !visionToGenerate) {
+      this.logger.log(
+        'Mission and Vision provided by user, skipping generation.',
+      );
+      return {
+        missionStatement: input.providedMission!,
+        visionStatement: input.providedVision!,
+      };
+    }
+
+    // Construct a focused prompt
+    let promptParts: string[] = [
+      `Given the following information about the company "${input.companyName}":`,
+      `- Industry: ${input.industry}`,
+      `- Description: ${input.companyDescription}`,
+      `- Target Audience: ${input.targetAudience}`,
+      `- Brand Personality Keywords: ${input.brandPersonalityKeywords}`,
+      `- Tone of Voice: ${input.toneOfVoice}`,
+    ];
+
+    if (missionToGenerate && visionToGenerate) {
+      promptParts.push(
+        `\nPlease generate a concise and impactful Mission Statement and Vision Statement.`,
+      );
+      promptParts.push(
+        `\nProvide the output ONLY as a JSON object with keys "mission" and "vision". Example: {"mission": "...", "vision": "..."}`,
+      );
+    } else if (missionToGenerate) {
+      promptParts.push(
+        `\nPlease generate a concise and impactful Mission Statement.`,
+      );
+      if (input.providedVision)
+        promptParts.push(`- Existing Vision: ${input.providedVision}`);
+      promptParts.push(
+        `\nProvide the output ONLY as a JSON object with the key "mission". Example: {"mission": "..."}`,
+      );
+    } else {
+      // Only vision to generate
+      promptParts.push(
+        `\nPlease generate a concise and impactful Vision Statement.`,
+      );
+      if (input.providedMission)
+        promptParts.push(`- Existing Mission: ${input.providedMission}`);
+      promptParts.push(
+        `\nProvide the output ONLY as a JSON object with the key "vision". Example: {"vision": "..."}`,
+      );
+    }
+
+    const fullPrompt = promptParts.join('\n');
+    this.logger.debug(`Constructed AI prompt: ${fullPrompt}`);
+
+    try {
+      const response = await axios.post(
+        'https://api.deepseek.com/v1/chat/completions',
+        {
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a helpful assistant skilled in writing concise and impactful mission and vision statements based on company details. Output ONLY the requested JSON.',
+            },
+            {
+              role: 'user',
+              content: fullPrompt,
+            },
+          ],
+          temperature: 0.6,
+          max_tokens: 300,
+          response_format: { type: 'json_object' },
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          timeout: this.API_TIMEOUT,
+        },
+      );
+
+      let generatedJson: any;
+      try {
+        const responseContent = response.data.choices[0].message.content.trim();
+        this.logger.debug(`Raw AI response content: ${responseContent}`);
+        generatedJson = JSON.parse(responseContent);
+        this.logger.debug('Parsed AI response JSON:', generatedJson);
+      } catch (parseError) {
+        this.logger.error(
+          'Error parsing core content AI response:',
+          parseError,
+        );
+        // Fallback if parsing fails
+        return {
+          missionStatement:
+            input.providedMission || `Default Mission for ${input.companyName}`,
+          visionStatement:
+            input.providedVision || `Default Vision for ${input.companyName}`,
+        };
+      }
+
+      // Combine provided and generated content
+      const finalOutput: CoreContentOutput = {
+        missionStatement:
+          input.providedMission ||
+          generatedJson?.mission ||
+          `Failed to generate mission for ${input.companyName}`,
+        visionStatement:
+          input.providedVision ||
+          generatedJson?.vision ||
+          `Failed to generate vision for ${input.companyName}`,
+      };
+
+      this.logger.log(
+        'Successfully generated/retrieved core content.',
+        finalOutput,
+      );
+      return finalOutput;
+    } catch (error) {
+      this.logger.error(
+        'Error calling Deepseek API for core content:',
+        error?.response?.data || error.message,
+      );
+      // Fallback on API error
+      return {
+        missionStatement:
+          input.providedMission ||
+          `Default Mission (API Error) for ${input.companyName}`,
+        visionStatement:
+          input.providedVision ||
+          `Default Vision (API Error) for ${input.companyName}`,
+      };
     }
   }
 }

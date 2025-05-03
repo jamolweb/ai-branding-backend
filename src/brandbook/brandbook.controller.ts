@@ -13,6 +13,7 @@ import {
   NotFoundException,
   Param,
   ParseFilePipe,
+  ParseFilePipeBuilder,
   Patch,
   Post,
   Req,
@@ -31,8 +32,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { BrandbookService } from './brandbook.service';
 import { CreateBrandbookDto } from './dto/create-brandbook.dto';
-import { GenerateCustomBrandBookDto } from './dto/generate-custom-brandbook.dto';
-import { GenerateSimpleBrandbookDto } from './dto/generate-simple-brandbook.dto';
+import { UpdateBrandbookDto } from './dto/update-brandbook.dto';
 import { BrandBookPdfGeneratorService } from './services/brandbook-pdf-generator.service';
 
 @Controller('brandbook')
@@ -118,24 +118,44 @@ export class BrandbookController {
   @UseInterceptors(FileInterceptor('logo'))
   async updateBrandbook(
     @Param('id') id: string,
-    @Body() updateData: Partial<CreateBrandbookDto>,
-    @UploadedFile() logo: Express.Multer.File,
+    @Body() updateData: UpdateBrandbookDto,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: '.(png|jpeg|jpg|gif|webp)',
+        })
+        .addMaxSizeValidator({
+          maxSize: 5 * 1024 * 1024,
+        })
+        .build({
+          fileIsRequired: false,
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    logo: Express.Multer.File | null,
     @Req() req: Request,
   ) {
-    return this.brandbookService.update(id, {
-      ...updateData,
-      logo,
-      userId: req.user['id'],
-    });
+    const user = req.user as { id: string } | undefined;
+    if (!user?.id) {
+      this.logger.error('User ID not found in request during update');
+      throw new UnauthorizedException('User not authenticated properly');
+    }
+    return this.brandbookService.update(id, updateData, logo, user.id);
   }
 
   @Get(':id/pdf')
   async getBrandbookPdf(@Param('id') id: string, @Req() req: Request) {
-    const pdf = await this.brandbookService.generatePdf(id, req.user['id']);
-    if (!pdf) {
-      throw new NotFoundException('PDF not found');
+    const user = req.user as { id: string } | undefined;
+    if (!user?.id) {
+      this.logger.error('User ID not found in request for PDF generation');
+      throw new UnauthorizedException('User not authenticated properly');
     }
-    return pdf;
+    const result = await this.brandbookService.generatePdf(id, user.id);
+    if (result && result.pdfUrl) {
+      return { pdfUrl: result.pdfUrl };
+    } else {
+      throw new InternalServerErrorException('Could not retrieve PDF URL.');
+    }
   }
 
   @Get('logo/:filename')
@@ -165,40 +185,36 @@ export class BrandbookController {
 
   @Post()
   @UseInterceptors(FileInterceptor('logo'))
-  async generateSimpleBrandbook(
-    @Body() data: GenerateSimpleBrandbookDto,
+  async createBrandbook(
+    @Body() data: CreateBrandbookDto,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
           new FileTypeValidator({ fileType: '.(png|jpeg|jpg|gif|webp)' }),
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB max
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
         ],
-        fileIsRequired: true, // Logo is required
+        fileIsRequired: true,
       }),
     )
     logo: Express.Multer.File,
     @Req() req: Request,
   ) {
+    const user = req.user as { id: string } | undefined;
+    if (!user?.id) {
+      this.logger.error('User ID not found in request during create');
+      throw new UnauthorizedException('User not authenticated properly');
+    }
     try {
-      // Upload logo to Cloudinary
-      const logoUrl = await this.cloudinaryService.uploadLogo(logo);
-
-      // Create brandbook with the uploaded logo URL
-      const createData = {
-        ...data,
-        userId: req.user['id'],
-      };
-
-      // Add the logo URL to a new object to avoid DTO validation
-      const finalData = {
-        ...createData,
-        logoUrl,
-      };
-
-      return this.brandbookService.create(finalData);
+      return this.brandbookService.create(data, logo, user.id);
     } catch (error) {
-      this.logger.error('Error generating simple brandbook:', error);
-      throw new BadRequestException('Failed to generate brandbook');
+      this.logger.error('Error creating brandbook:', error);
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to create brandbook.');
     }
   }
 
@@ -220,61 +236,6 @@ export class BrandbookController {
       return new StreamableFile(file);
     } catch (error) {
       throw new NotFoundException('PDF not found');
-    }
-  }
-
-  @Post('generate-custom')
-  async generateCustomBrandBook(
-    @Body() brandBookData: GenerateCustomBrandBookDto,
-    @Res() res: Response,
-  ) {
-    try {
-      // Get AI content first
-      const aiContent = await this.brandBookPdfGeneratorService[
-        'aiContentService'
-      ].generateBrandContent(
-        brandBookData.companyName,
-        brandBookData.industry || 'technology',
-      );
-
-      const pdfBuffer =
-        await this.brandBookPdfGeneratorService.generateBrandBook({
-          ...brandBookData,
-          aiContent,
-        });
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${brandBookData.companyName.replace(/\s+/g, '-').toLowerCase()}-brandbook.pdf"`,
-      );
-
-      res.send(pdfBuffer);
-    } catch (error) {
-      this.logger.error('Error generating custom brand book:', error);
-      throw new InternalServerErrorException('Error generating brand book');
-    }
-  }
-
-  @Post('upload-logo')
-  @UseInterceptors(FileInterceptor('logo'))
-  async uploadLogo(
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|gif|webp)' }),
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB max
-        ],
-      }),
-    )
-    logo: Express.Multer.File,
-  ) {
-    try {
-      const logoUrl = await this.cloudinaryService.uploadLogo(logo);
-      return { logoUrl };
-    } catch (error) {
-      this.logger.error('Error uploading logo:', error);
-      throw new BadRequestException('Failed to upload logo');
     }
   }
 }
