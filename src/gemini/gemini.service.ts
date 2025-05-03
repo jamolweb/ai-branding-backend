@@ -24,7 +24,7 @@ export class GeminiService {
       const imageUrls: string[] = [];
 
       // Generate 5 different logos in parallel
-      const promises = Array(5).fill(null).map(async () => {
+      const promises = Array(6).fill(null).map(async () => {
         const response = await model.generateContent({
           model: 'gemini-2.0-flash-exp-image-generation',
           contents: [
