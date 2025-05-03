@@ -3,7 +3,7 @@ name: Deploy Backend
 on:
   push:
     branches:
-      - ${{ secrets.MAIN_BRANCH }}
+      - main
 
 jobs:
   deploy:
@@ -22,7 +22,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             cd ${{ secrets.WORK_DIR }}
-            git pull origin ${{ secrets.MAIN_BRANCH }}
+            git pull origin main
             npm install
             npm run build
             pm2 restart ai-branding-backend || pm2 start dist/src/main.js --name ai-branding-backend
