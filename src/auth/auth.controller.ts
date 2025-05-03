@@ -16,6 +16,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { frontendUrl } from 'env';
 
 @Controller('auth')
 export class AuthController {
@@ -61,9 +62,8 @@ export class AuthController {
     );
 
     // Redirect to frontend with tokens
-    // const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://brandlly.ai' : 'http://localhost:3000';
     return res.redirect(
-      `https://brandlly.ai/dashboard?` +
+      `${frontendUrl}/dashboard?` +
         `accessToken=${tokens.accessToken}&` +
         `refreshToken=${tokens.refreshToken}`,
     );

@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { frontendUrl } from 'env';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -11,9 +12,7 @@ async function bootstrap() {
   });
   app.enableCors({
     origin: [
-      process.env.FRONTEND_URL ?? 'http://localhost:3000',
-      'https://ai-branding-frontend.vercel.app',
-      'https://brandlly.ai',
+      frontendUrl,
     ],
     credentials: true,
   });
