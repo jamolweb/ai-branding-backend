@@ -201,35 +201,35 @@
       /* -- Logo Guidelines Page Styles -- */
       .logo-page .logo-display-area {
         background-color: #f8f8f8;
-        padding: 20mm;
-        margin-bottom: 15mm;
+        padding: 15mm;
+        margin-bottom: 10mm;
         text-align: center;
         border: 1px solid #eeeeee;
-        min-height: 80mm;
+        min-height: 60mm;
         display: flex;
         justify-content: center;
         align-items: center;
       }
       .logo-page .logo-display-area img {
-        max-width: 80%;
-        max-height: 60mm;
+        max-width: 70%;
+        max-height: 50mm;
         object-fit: contain;
       }
       .logo-page .guideline-section {
-        margin-bottom: 10mm;
+        margin-bottom: 8mm;
       }
       .logo-page .guideline-section h3 {
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 700;
         color: #333333;
-        margin: 0 0 3mm 0;
+        margin: 0 0 2mm 0;
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
       .logo-page .guideline-section p {
-        font-size: 12px;
-        line-height: 1.6;
-        margin: 0 0 5mm 0;
+        font-size: 11px;
+        line-height: 1.4;
+        margin: 0 0 3mm 0;
         color: #555555;
       }
 
@@ -270,6 +270,53 @@
         font-size: 11px;
         color: #666666;
         line-height: 1.4;
+      }
+
+      /* -- Color Palette Page Styles -- */
+      .color-page {
+        padding: 30mm 20mm;
+      }
+      .color-page h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0 0 15mm 0;
+      }
+      .color-page .color-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10mm;
+      }
+      .color-page .color-item {
+        border: 1px solid #EEEEEE;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .color-page .color-preview {
+        height: 25mm;
+        width: 100%;
+      }
+      .color-page .color-info {
+        padding: 5mm;
+      }
+      .color-page .color-info h3 {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 2mm 0;
+      }
+      .color-page .color-info p {
+        font-size: 12px;
+        margin: 0;
+        color: #555555;
+      }
+      .color-page .color-info .color-hex {
+        font-family: monospace;
+        color: #666666;
+      }
+      .color-page .no-colors {
+        text-align: center;
+        color: #666666;
+        font-style: italic;
+        padding: 20mm 0;
       }
 
       /* -- Typography Page Styles -- */
@@ -502,25 +549,13 @@
         </div>
 
         <div class='guideline-section'>
-          <h3>Primary Logo</h3>
-          <p>This is the primary logo and should be used whenever possible.
-            Ensure proper clear space is maintained around the logo, equal to
-            the height of the primary logomark element.</p>
+          <h3>Primary Logo Usage</h3>
+          <p>Use this primary logo version whenever possible with proper clear space (height of logomark).</p>
         </div>
 
         <div class='guideline-section'>
-          <h3>Clear Space</h3>
-          <p>Maintain a minimum clear space around the logo to ensure its
-            visibility and impact. No other elements (text, images, etc.) should
-            infringe upon this space. The clear space is defined by the height
-            'X' of the main symbol.</p>
-        </div>
-
-        <div class='guideline-section'>
-          <h3>Minimum Size</h3>
-          <p>To ensure legibility, the logo should not be reproduced smaller
-            than 20mm in width for print applications or 75px wide for digital
-            applications.</p>
+          <h3>Clear Space & Size</h3>
+          <p>Maintain clear space of 'X' height around logo. Minimum size: 20mm (print) or 75px (digital) width.</p>
         </div>
       </div>
       <div class='page-footer'>
