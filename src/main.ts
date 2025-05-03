@@ -10,6 +10,8 @@ async function bootstrap() {
   app.useStaticAssets(join(__dirname, '..', 'public'), {
     prefix: '/',
   });
+  console.log(frontendUrl);
+  
   app.enableCors({
     origin: [
       frontendUrl,
