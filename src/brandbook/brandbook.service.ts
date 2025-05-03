@@ -217,10 +217,11 @@ export class BrandbookService {
       return createdBrandbook;
     }
 
-    // Step 3: Upload PDF Buffer to S3
+    // Step 3: Upload PDF Buffer to S3 and generate pre-signed URL
     let pdfUrl: string | null = null;
     try {
-      const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+      const { S3Client, PutObjectCommand, GetObjectCommand } = await import('@aws-sdk/client-s3');
+      const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
       const filename = `${createdBrandbook.id}_${createdBrandbook.companyName.replace(/\s+/g, '_')}_BrandBook.pdf`;
       
       const s3Client = new S3Client({
@@ -233,6 +234,7 @@ export class BrandbookService {
 
       this.logger.log(`Uploading PDF to S3 bucket: ${process.env.S3_BUCKET_NAME}`);
       
+      // Upload the file
       await s3Client.send(
         new PutObjectCommand({
           Bucket: process.env.S3_BUCKET_NAME,
@@ -242,9 +244,14 @@ export class BrandbookService {
         })
       );
 
-      // Generate the S3 URL
-      pdfUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/pdfs/${filename}`;
-      this.logger.log(`PDF uploaded to S3. Accessible URL: ${pdfUrl}`);
+      // Generate pre-signed URL (24 hour expiration)
+      const getObjectCommand = new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: `pdfs/${filename}`,
+      });
+      
+      pdfUrl = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 24 * 60 * 60 });
+      this.logger.log(`PDF uploaded to S3. Pre-signed URL generated (24h expiration): ${pdfUrl}`);
     } catch (uploadError) {
       this.logger.error(
         `Failed to upload PDF to S3 for brandbook ID: ${createdBrandbook.id}`,
