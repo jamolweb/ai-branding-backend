@@ -21,9 +21,14 @@ jobs:
       - name: Deploy via SSH
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            export NVM_DIR="/root/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # load nvm
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # optional
+            
             cd ${{ secrets.WORK_DIR }}
             git pull origin main
             npm install
             npm run build
             pm2 restart ai-branding-backend || pm2 start dist/src/main.js --name ai-branding-backend
           EOF
+      
