@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   Post,
   Res,
@@ -17,27 +18,50 @@ import { ChatService } from './chat.service';
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
+  private readonly logger = new Logger(ChatController.name);
+
   @Post('send')
   async sendMessage(
     @GetUser('id') userId: string,
     @Body() body: { sessionId?: string; message: string },
     @Res() res: Response,
   ) {
+    this.logger.log(`Starting chat stream for user ${userId} with message: ${body.message.substring(0, 50)}...`);
+    
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    let chunkCount = 0;
     try {
       for await (const chunk of this.chatService.streamMessage(
         userId,
         body.sessionId,
         body.message,
       )) {
+        if (!chunk) {
+          this.logger.warn('Received empty chunk from streamMessage');
+          continue;
+        }
+        chunkCount++;
         res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      }
+      
+      this.logger.log(`Chat stream completed for user ${userId}. Total chunks: ${chunkCount}`);
+      if (chunkCount === 0) {
+        this.logger.warn(`No chunks were streamed for user ${userId}`);
       }
       res.end();
     } catch (error) {
-      res.status(500).json({ error: 'Failed to process message' });
+      this.logger.error(
+        `Error in chat stream for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to process message' });
+      } else {
+        res.end();
+      }
     }
   }
 
