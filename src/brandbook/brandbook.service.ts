@@ -56,7 +56,6 @@ export class BrandbookService {
       throw new BadRequestException('Failed to upload logo file.');
     }
 
-    // Prepare data for AI Content Generation
     const aiInputData: CoreContentInput = {
       companyName: data.companyName,
       companyDescription: data.companyDescription,
@@ -70,7 +69,6 @@ export class BrandbookService {
     };
     this.logger.debug('Prepared data for AI content generation:', aiInputData);
 
-    // --- Call AIContentService to generate/retrieve core content ---
     let generatedContent: CoreContentOutput;
     try {
       generatedContent =
@@ -81,8 +79,6 @@ export class BrandbookService {
       );
     } catch (aiError) {
       this.logger.error('AI Content Generation failed:', aiError);
-      // Decide how to handle AI failure: proceed with defaults or throw?
-      // For now, let's use simple defaults and proceed
       generatedContent = {
         missionStatement:
           data.missionStatement ||
@@ -95,9 +91,7 @@ export class BrandbookService {
         'Proceeding with default mission/vision after AI error.',
       );
     }
-    // --- End AI Call ---
 
-    // Prepare data for Prisma create operation
     const prismaCreateData: Prisma.BrandbookCreateInput = {
       user: { connect: { id: userId } },
       companyName: data.companyName,
@@ -124,9 +118,8 @@ export class BrandbookService {
 
     let createdBrandbook: Brandbook;
     try {
-      // Step 1: Create the initial brandbook record
       createdBrandbook = await this.prisma.brandbook.create({
-        data: { ...prismaCreateData, user: { connect: { id: userId } } }, // ensure user connection is passed
+        data: { ...prismaCreateData, user: { connect: { id: userId } } }, 
       });
       this.logger.log(
         `Brandbook created successfully with ID: ${createdBrandbook.id}`,
@@ -157,14 +150,12 @@ export class BrandbookService {
       );
     }
 
-    // Step 2: Prepare data and generate PDF Buffer using the TEMPLATE service
     let pdfBuffer: Buffer;
     try {
       this.logger.log(
         `Preparing data for TEMPLATE PDF generation for brandbook ID: ${createdBrandbook.id}`,
       );
 
-      // --- Prepare pdfData similar to generatePdf method ---
       let parsedColors: { name: string; value: string; usageNote?: string }[] =
         [];
       if (
@@ -194,15 +185,13 @@ export class BrandbookService {
         currentYear: new Date().getFullYear(),
       };
       delete (pdfData as any).brandColorsJson;
-      delete (pdfData as any).generatedJson; // Ensure this is removed if it exists
+      delete (pdfData as any).generatedJson; 
       this.logger.debug(
         `Prepared data for PDF template: ID ${createdBrandbook.id}`,
       );
-      // --- End pdfData preparation ---
 
-      // Call the Template-based PDF Service
       pdfBuffer = await this.pdfService.generatePdfFromTemplate(
-        'brandbook-template', // Assuming this is the correct template name
+        'brandbook-template', 
         pdfData,
       );
       this.logger.log(
@@ -213,11 +202,9 @@ export class BrandbookService {
         `Failed to generate TEMPLATE PDF Buffer for brandbook ID: ${createdBrandbook.id}`,
         pdfError,
       );
-      // Still return the created record, just without a PDF link
       return createdBrandbook;
     }
 
-    // Step 3: Upload PDF Buffer to S3 and generate pre-signed URL
     let pdfUrl: string | null = null;
     try {
       const { S3Client, PutObjectCommand, GetObjectCommand } = await import('@aws-sdk/client-s3');
@@ -234,7 +221,6 @@ export class BrandbookService {
 
       this.logger.log(`Uploading PDF to S3 bucket: ${process.env.S3_BUCKET_NAME}`);
       
-      // Upload the file
       await s3Client.send(
         new PutObjectCommand({
           Bucket: process.env.S3_BUCKET_NAME,
@@ -244,7 +230,6 @@ export class BrandbookService {
         })
       );
 
-      // Generate pre-signed URL (24 hour expiration)
       const getObjectCommand = new GetObjectCommand({
         Bucket: process.env.S3_BUCKET_NAME,
         Key: `pdfs/${filename}`,
@@ -257,28 +242,23 @@ export class BrandbookService {
         `Failed to upload PDF to S3 for brandbook ID: ${createdBrandbook.id}`,
         uploadError,
       );
-      // PDF generated but not uploaded. Return record without URL.
       return createdBrandbook;
     }
 
-    // Step 4: Update the brandbook record with the local PDF URL Path
     try {
       const updatedBrandbook = await this.prisma.brandbook.update({
         where: { id: createdBrandbook.id },
-        data: { pdfUrl: pdfUrl }, // Save the local URL path
+        data: { pdfUrl: pdfUrl }
       });
       this.logger.log(
         `Successfully updated brandbook ID: ${createdBrandbook.id} with PDF URL path.`,
       );
-      return updatedBrandbook; // Return final record including PDF URL path
+      return updatedBrandbook;
     } catch (updateError) {
       this.logger.error(
         `Failed to update brandbook ID: ${createdBrandbook.id} with PDF URL path ${pdfUrl}`,
         updateError,
       );
-      // Record created, PDF generated and saved, but DB update failed.
-      // Log error, maybe try cleanup? Return original record for now.
-      // TODO: Consider deleting the orphaned local PDF if update fails.
       return createdBrandbook;
     }
   }
@@ -341,15 +321,12 @@ export class BrandbookService {
       }
     }
     if (brandbook.pdfUrl && !brandbook.pdfUrl.startsWith('http')) {
-      // Simple check for local path
       try {
         const localPath = path.join(process.cwd(), 'public', brandbook.pdfUrl);
         await fs.unlink(localPath);
         this.logger.debug(`Deleted local PDF file: ${localPath}`);
       } catch (localDeleteError) {
-        // Log error if deletion fails (e.g., file not found)
         if (localDeleteError.code !== 'ENOENT') {
-          // Ignore file not found error
           this.logger.error(
             `Error deleting local PDF file ${brandbook.pdfUrl}:`,
             localDeleteError,
@@ -536,7 +513,6 @@ export class BrandbookService {
       );
     }
 
-    // Prepare data object for the template
     const pdfData = {
       ...brandbook,
       brandColors: parsedColors,
@@ -584,7 +560,6 @@ export class BrandbookService {
       pdfUrl = `/pdfs/${filename}`;
       this.logger.log(`PDF saved locally. URL path: ${pdfUrl}`);
 
-      // Cleanup old local PDF if it exists and path is different
       if (
         brandbook.pdfUrl &&
         brandbook.pdfUrl !== pdfUrl &&
@@ -630,7 +605,6 @@ export class BrandbookService {
         `Failed to update brandbook ${id} with PDF URL path:`,
         error,
       );
-      // Consider deleting the newly saved file if DB update fails
       try {
         const localPath = path.join(process.cwd(), 'public', pdfUrl);
         await fs.unlink(localPath);
