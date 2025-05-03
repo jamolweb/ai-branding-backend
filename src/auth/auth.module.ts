@@ -7,16 +7,17 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { JWT_ACCESS_EXPIRATION, JWT_ACCESS_SECRET } from 'env';
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_ACCESS_SECRET'),
+      useFactory: async () => ({
+        secret: JWT_ACCESS_SECRET,
         signOptions: {
-          expiresIn: configService.get('JWT_ACCESS_EXPIRATION'),
+          expiresIn: JWT_ACCESS_EXPIRATION,
         },
       }),
       inject: [ConfigService],
