@@ -42,8 +42,6 @@ export class BrandbookController {
 
   constructor(
     private readonly brandbookService: BrandbookService,
-    private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
-    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   @Get()

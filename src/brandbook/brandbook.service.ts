@@ -30,12 +30,9 @@ export class BrandbookService {
 
   constructor(
     private prisma: PrismaService,
-    private mockContentService: MockContentService,
-    private templateService: TemplateService,
     private cloudinaryService: CloudinaryService,
     private pdfService: PdfService,
     private readonly aiContentService: AIContentService,
-    private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
   ) {
     this.logger = new Logger(BrandbookService.name);
   }
@@ -220,26 +217,40 @@ export class BrandbookService {
       return createdBrandbook;
     }
 
-    // Step 3: Save PDF Buffer Locally
-    let pdfUrl: string | null = null; // Will store the URL path
+    // Step 3: Upload PDF Buffer to S3
+    let pdfUrl: string | null = null;
     try {
+      const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
       const filename = `${createdBrandbook.id}_${createdBrandbook.companyName.replace(/\s+/g, '_')}_BrandBook.pdf`;
-      const directoryPath = path.join(process.cwd(), 'public', 'pdfs'); // Use process.cwd() for root
-      const filePath = path.join(directoryPath, filename);
+      
+      const s3Client = new S3Client({
+        region: process.env.AWS_REGION,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+      });
 
-      this.logger.log(`Saving PDF buffer locally to: ${filePath}`);
-      await fs.mkdir(directoryPath, { recursive: true }); // Ensure directory exists
-      await fs.writeFile(filePath, pdfBuffer);
-
-      // Generate the URL path for accessing the file via static serving
-      pdfUrl = `/pdfs/${filename}`;
-      this.logger.log(`PDF saved locally. Accessible URL path: ${pdfUrl}`);
-    } catch (saveError) {
-      this.logger.error(
-        `Failed to save PDF buffer locally for brandbook ID: ${createdBrandbook.id}`,
-        saveError,
+      this.logger.log(`Uploading PDF to S3 bucket: ${process.env.S3_BUCKET_NAME}`);
+      
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: `pdfs/${filename}`,
+          Body: pdfBuffer,
+          ContentType: 'application/pdf',
+        })
       );
-      // PDF generated but not saved. Return record without URL.
+
+      // Generate the S3 URL
+      pdfUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/pdfs/${filename}`;
+      this.logger.log(`PDF uploaded to S3. Accessible URL: ${pdfUrl}`);
+    } catch (uploadError) {
+      this.logger.error(
+        `Failed to upload PDF to S3 for brandbook ID: ${createdBrandbook.id}`,
+        uploadError,
+      );
+      // PDF generated but not uploaded. Return record without URL.
       return createdBrandbook;
     }
 

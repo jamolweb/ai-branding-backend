@@ -56,7 +56,7 @@ export class AIContentService {
   constructor(
     private readonly configService: ConfigService,
     private readonly geminiService: GeminiService,
-  ) {}
+  ) { }
 
   async generateBrandContent(
     companyName: string,
@@ -447,10 +447,10 @@ Make all content professional, modern, and specific to the ${industry} industry.
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
       ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16),
-        }
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
       : { r: 0, g: 0, b: 0 };
   }
 
