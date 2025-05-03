@@ -20,52 +20,59 @@ export class GeminiService {
   ): Promise<{ images: string[]; jobId: string }> {
     try {
       const generationStartTime = Date.now();
-
       const model = this.gemini.models;
-      const response = await model.generateContent({
-        model: 'gemini-2.0-flash-exp-image-generation',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `Generate a professional logo design with the following description: ${prompt}. The logo should be clean, modern, and suitable for business use.`,
-              },
-            ],
+      const imageUrls: string[] = [];
+
+      // Generate 5 different logos in parallel
+      const promises = Array(5).fill(null).map(async () => {
+        const response = await model.generateContent({
+          model: 'gemini-2.0-flash-exp-image-generation',
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: `Generate a unique professional logo design with the following description: ${prompt}. The logo should be clean, modern, and suitable for business use. Make it different from other variations.`,
+                },
+              ],
+            },
+          ],
+          config: {
+            responseModalities: ['Text', 'Image'],
           },
-        ],
-        config: {
-          responseModalities: ['Text', 'Image'],
-        },
+        });
+
+        if (!response?.candidates?.[0]?.content) {
+          throw new Error(
+            'Invalid response structure: No candidates or content found',
+          );
+        }
+
+        const content = response.candidates[0].content;
+        const parts = Array.isArray(content) ? content : content.parts;
+
+        if (!parts) {
+          throw new Error('No parts found in response content');
+        }
+
+        let imageBase64 = null;
+        for (const part of parts) {
+          if (part.inlineData?.data) {
+            imageBase64 = part.inlineData.data;
+            break;
+          }
+        }
+
+        if (!imageBase64) {
+          throw new Error('No image data found in response parts');
+        }
+
+        return `data:image/png;base64,${imageBase64}`;
       });
 
-      if (!response?.candidates?.[0]?.content) {
-        throw new Error(
-          'Invalid response structure: No candidates or content found',
-        );
-      }
-
-      const content = response.candidates[0].content;
-
-      let imageBase64 = null;
-
-      const parts = Array.isArray(content) ? content : content.parts;
-      if (!parts) {
-        throw new Error('No parts found in response content');
-      }
-
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          imageBase64 = part.inlineData.data;
-          break;
-        }
-      }
-
-      if (!imageBase64) {
-        throw new Error('No image data found in response parts');
-      }
-
-      const imageUrl = `data:image/png;base64,${imageBase64}`;
+      // Wait for all logo generations to complete
+      const results = await Promise.all(promises);
+      imageUrls.push(...results);
       const generationEndTime = Date.now();
       const generationTime = generationEndTime - generationStartTime;
 
@@ -79,7 +86,7 @@ export class GeminiService {
       });
 
       this.processBackgroundTasks(
-        imageUrl,
+        imageUrls,
         prompt,
         userId,
         job.id,
@@ -89,7 +96,7 @@ export class GeminiService {
       });
 
       return {
-        images: [imageUrl],
+        images: imageUrls,
         jobId: job.id,
       };
     } catch (error) {
@@ -121,31 +128,40 @@ export class GeminiService {
   }
 
   private async processBackgroundTasks(
-    imageUrl: string,
+    imageUrls: string[],
     prompt: string,
     userId: string,
     jobId: string,
     generationTime: number,
   ): Promise<void> {
     try {
-      const cloudinaryUrl = await this.cloudinaryService.uploadImage(imageUrl);
+      // Upload all images to Cloudinary in parallel
+      const cloudinaryUrls = await Promise.all(
+        imageUrls.map(imageUrl => this.cloudinaryService.uploadImage(imageUrl))
+      );
 
-      const logo = await this.prisma.logo.create({
-        data: {
-          prompt,
-          imageUrl: cloudinaryUrl,
-          userId,
-          generationTime,
-          status: 'COMPLETED',
-        },
-      });
+      // Create all logos in parallel
+      const logos = await Promise.all(
+        cloudinaryUrls.map(cloudinaryUrl =>
+          this.prisma.logo.create({
+            data: {
+              prompt,
+              imageUrl: cloudinaryUrl,
+              userId,
+              generationTime,
+              status: 'COMPLETED',
+            },
+          })
+        )
+      );
 
+      // Update the job with the first logo ID (maintaining backwards compatibility)
       await this.prisma.logoGenerationJob.update({
         where: { id: jobId },
         data: {
           status: 'COMPLETED',
           endedAt: new Date(),
-          logoId: logo.id,
+          logoId: logos[0].id,
         },
       });
     } catch (error) {
