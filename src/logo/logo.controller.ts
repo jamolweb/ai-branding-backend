@@ -23,11 +23,6 @@ export class LogoController {
     private readonly geminiService: GeminiService,
   ) {}
 
-  @Post('deepseek/make-prompt-better')
-  @HttpCode(HttpStatus.OK)
-  async enhancePrompt(@Body('text') text: string) {
-    return this.logoService.enhancePrompt({ text });
-  }
 
   @Post('generate')
   @HttpCode(HttpStatus.OK)

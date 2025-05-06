@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { BrandbookModule } from './brandbook/brandbook.module';
 import { ChatModule } from './chat/chat.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { DeepseekModule } from './deepseek/deepseek.module';
 import { GeminiModule } from './gemini/gemini.module';
 import { LogoModule } from './logo/logo.module';
 
@@ -20,8 +21,9 @@ import { LogoModule } from './logo/logo.module';
     GeminiModule,
     ChatModule,
     BrandbookModule,
+    DeepseekModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

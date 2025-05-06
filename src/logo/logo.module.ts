@@ -9,5 +9,6 @@ import { LogoService } from './logo.service';
   imports: [ConfigModule, CloudinaryModule, GeminiModule],
   controllers: [LogoController],
   providers: [LogoService],
+  exports: [LogoService],
 })
-export class LogoModule {}
+export class LogoModule { }

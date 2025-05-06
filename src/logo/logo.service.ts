@@ -12,7 +12,7 @@ export class LogoService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   async enhancePrompt(dto: EnhancePromptDto): Promise<string> {
     const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
@@ -32,7 +32,7 @@ export class LogoService {
             {
               role: 'system',
               content:
-                'You are a prompt engineering expert. Enhance the given text to make it a better prompt for AI image generation. Be concise but specific. Keep the response minimalistic to the point.',
+                'You are a prompt engineering expert. Enhance the given text to make it a better prompt for AI branding software company. Be concise but specific. Keep the response minimalistic to the point.',
             },
             {
               role: 'user',
