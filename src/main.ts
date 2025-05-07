@@ -11,11 +11,10 @@ async function bootstrap() {
     prefix: '/',
   });
   console.log(frontendUrl);
-  
+  console.log(frontendUrl);
+
   app.enableCors({
-    origin: [
-      frontendUrl,
-    ],
+    origin: [frontendUrl],
     credentials: true,
   });
   app.setGlobalPrefix('/api');

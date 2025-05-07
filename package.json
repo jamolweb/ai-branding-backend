@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.802.0",
+    "@aws-sdk/s3-request-presigner": "^3.804.0",
     "@eslint/config-array": "^0.20.0",
     "@eslint/object-schema": "^2.1.6",
     "@google/genai": "^0.8.0",

@@ -234,42 +234,41 @@
       }
 
       /* -- Color Palette Page Styles -- */
+      .color-page .color-content {
+        display: flex;
+        flex-direction: column;
+        margin-top: 40px;
+      }
+      .color-page .color-description {
+        width: 100%;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #333333;
+        margin-bottom: 60px;
+      }
       .color-page .color-grid {
-        display: grid;
-        grid-template-columns: repeat(
-          auto-fill,
-          minmax(100px, 1fr)
-        ); /* Responsive grid */
-        gap: 15mm;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 20px;
+        margin-top: 60px;
       }
       .color-page .color-item {
         display: flex;
         flex-direction: column;
+        align-items: center;
+        width: 120px;
       }
       .color-page .color-swatch {
-        width: 100%;
-        height: 80px; /* Adjust height as needed */
-        border: 1px solid #eeeeee;
-        margin-bottom: 5mm;
+        width: 120px;
+        height: 120px;
+        margin-bottom: 15px;
       }
-      .color-page .color-name {
+      .color-page .color-hex {
+        font-family: monospace;
         font-size: 14px;
-        font-weight: 700;
-        color: #141414;
-        margin-bottom: 2mm;
-        text-transform: capitalize; /* Nicer display for names like 'primary' */
-      }
-      .color-page .color-value {
-        font-size: 11px;
-        font-family: monospace; /* Good for hex codes */
-        color: #555555;
-        margin-bottom: 3mm;
-        text-transform: uppercase;
-      }
-      .color-page .color-usage {
-        font-size: 11px;
-        color: #666666;
-        line-height: 1.4;
+        color: #333333;
+        text-align: center;
       }
 
       /* -- Typography Page Styles -- */
@@ -438,7 +437,12 @@
       <div class='page-content-wrapper'>
         <h1 class='page-title'>Introduction</h1>
         <div class='title-line'></div>
-        <p class='description'>{{{companyDescription}}}</p>
+
+        {{#if enhancedIntroduction}}
+          <p class='description'>{{{enhancedIntroduction}}}</p>
+        {{else}}
+          <p class='description'>{{{companyDescription}}}</p>
+        {{/if}}
 
         {{#if logoUrl}}
           <div class='logo-container'>
@@ -503,12 +507,14 @@
 
         <div class='guideline-section'>
           <h3>Primary Logo Usage</h3>
-          <p>Use this primary logo version whenever possible with proper clear space (height of logomark).</p>
+          <p>Use this primary logo version whenever possible with proper clear
+            space (height of logomark).</p>
         </div>
 
         <div class='guideline-section'>
           <h3>Clear Space & Size</h3>
-          <p>Maintain clear space of 'X' height around logo. Minimum size: 20mm (print) or 75px (digital) width.</p>
+          <p>Maintain clear space of 'X' height around logo. Minimum size: 20mm
+            (print) or 75px (digital) width.</p>
         </div>
       </div>
       <div class='page-footer'>
@@ -526,22 +532,33 @@
         <h1 class='page-title'>Color Palette</h1>
         <div class='title-line'></div>
 
-        <div class='color-grid'>
-          {{#each brandColors}}
-            <div class='color-item'>
-              <div
-                class='color-swatch'
-                style='background-color: {{this.value}};'
-              ></div>
-              <div class='color-name'>{{this.name}}</div>
-              <div class='color-value'>{{this.value}}</div>
-              {{#if this.usageNote}}
-                <div class='color-usage'>{{{this.usageNote}}}</div>
-              {{/if}}
-            </div>
-          {{else}}
-            <p>No brand colors defined.</p>
-          {{/each}}
+        <div class='color-content'>
+          <div class='color-description'>
+            {{#if colorPaletteDescription}}
+              <p>{{{colorPaletteDescription}}}</p>
+            {{else}}
+              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                Vestibulum ut lectus risus. Aliquam id quam ut turpis iaculis
+                congue et eget ipsum. Etiam ultrices nibh at metus tempus, sit
+                amet varius eros ultrices. Praesent quis ipsum ut leo pulvinar
+                varius nulla. In vel odio massa. Sed mattis risus malesuada est
+                iaculis pharetra.</p>
+            {{/if}}
+          </div>
+
+          <div class='color-grid'>
+            {{#each brandColors}}
+              <div class='color-item'>
+                <div
+                  class='color-swatch'
+                  style='background-color: {{this.value}};'
+                ></div>
+                <div class='color-hex'>{{this.value}}</div>
+              </div>
+            {{else}}
+              <p>No brand colors defined.</p>
+            {{/each}}
+          </div>
         </div>
 
       </div>

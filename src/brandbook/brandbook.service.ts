@@ -33,6 +33,8 @@ export class BrandbookService {
     private cloudinaryService: CloudinaryService,
     private pdfService: PdfService,
     private readonly aiContentService: AIContentService,
+    private readonly templateService: TemplateService,
+    private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
   ) {
     this.logger = new Logger(BrandbookService.name);
   }
@@ -119,7 +121,7 @@ export class BrandbookService {
     let createdBrandbook: Brandbook;
     try {
       createdBrandbook = await this.prisma.brandbook.create({
-        data: { ...prismaCreateData, user: { connect: { id: userId } } }, 
+        data: { ...prismaCreateData, user: { connect: { id: userId } } },
       });
       this.logger.log(
         `Brandbook created successfully with ID: ${createdBrandbook.id}`,
@@ -164,14 +166,74 @@ export class BrandbookService {
       ) {
         try {
           if (Array.isArray(createdBrandbook.brandColorsJson)) {
-            parsedColors = createdBrandbook.brandColorsJson.filter(
-              (c: any) =>
-                c && typeof c.name === 'string' && typeof c.value === 'string',
-            ) as { name: string; value: string; usageNote?: string }[];
+            parsedColors = createdBrandbook.brandColorsJson.map(
+              (c: any, index: number) => {
+                if (!c) c = {};
+
+                const name =
+                  c.name && typeof c.name === 'string' && c.name.trim() !== ''
+                    ? c.name
+                    : `Color ${index + 1}`;
+
+                const value =
+                  c.value &&
+                  typeof c.value === 'string' &&
+                  /^#[0-9A-Fa-f]{6}$/.test(c.value)
+                    ? c.value
+                    : this.getDefaultColorByIndex(index);
+
+                return {
+                  name,
+                  value,
+                  usageNote:
+                    c.usageNote && typeof c.usageNote === 'string'
+                      ? c.usageNote
+                      : undefined,
+                };
+              },
+            );
+            this.logger.debug(
+              `Prepared ${parsedColors.length} brand colors for PDF with defaults as needed.`,
+            );
           }
         } catch (e) {
           this.logger.error('Failed to parse brandColorsJson during create', e);
+          parsedColors = [{ name: 'Primary', value: '#000000' }];
         }
+      }
+
+      // Generate an AI-enhanced introduction
+      let enhancedIntroduction = createdBrandbook.companyDescription || '';
+      try {
+        const introInput = {
+          companyName: createdBrandbook.companyName,
+          companyDescription: createdBrandbook.companyDescription,
+          industry: createdBrandbook.industry,
+          targetAudience: createdBrandbook.targetAudience,
+          brandPersonalityKeywords: createdBrandbook.brandPersonalityKeywords,
+          visualStyleKeywords: createdBrandbook.visualStyleKeywords,
+          toneOfVoice: createdBrandbook.toneOfVoice,
+          missionStatement: createdBrandbook.missionStatement,
+          visionStatement: createdBrandbook.visionStatement,
+          tagline: createdBrandbook.tagline,
+        };
+
+        this.logger.log(
+          `Generating enhanced introduction for ${createdBrandbook.companyName}`,
+        );
+        const enhancedContent =
+          await this.aiContentService.generateEnhancedIntroduction(introInput);
+        enhancedIntroduction = enhancedContent.enhancedIntroduction;
+        this.logger.log(
+          `Successfully generated enhanced introduction for brandbook ID: ${createdBrandbook.id}`,
+        );
+      } catch (introError) {
+        this.logger.error(
+          `Failed to generate enhanced introduction for brandbook ID: ${createdBrandbook.id}. Using original description.`,
+          introError,
+        );
+        // Fall back to the original description or empty string
+        enhancedIntroduction = createdBrandbook.companyDescription || '';
       }
 
       const pdfData = {
@@ -183,15 +245,18 @@ export class BrandbookService {
           day: 'numeric',
         }),
         currentYear: new Date().getFullYear(),
+        enhancedIntroduction,
+        colorPaletteDescription:
+          "These colors form the foundation of our brand's visual identity. When used consistently, they help establish brand recognition across all touchpoints. The primary colors should dominate your designs, with secondary and accent colors used for highlights, backgrounds, and to create visual interest. Always ensure sufficient contrast between text and background colors for optimal readability.",
       };
       delete (pdfData as any).brandColorsJson;
-      delete (pdfData as any).generatedJson; 
+      delete (pdfData as any).generatedJson;
       this.logger.debug(
         `Prepared data for PDF template: ID ${createdBrandbook.id}`,
       );
 
       pdfBuffer = await this.pdfService.generatePdfFromTemplate(
-        'brandbook-template', 
+        'brandbook-template',
         pdfData,
       );
       this.logger.log(
@@ -207,10 +272,12 @@ export class BrandbookService {
 
     let pdfUrl: string | null = null;
     try {
-      const { S3Client, PutObjectCommand, GetObjectCommand } = await import('@aws-sdk/client-s3');
+      const { S3Client, PutObjectCommand, GetObjectCommand } = await import(
+        '@aws-sdk/client-s3'
+      );
       const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
       const filename = `${createdBrandbook.id}_${createdBrandbook.companyName.replace(/\s+/g, '_')}_BrandBook.pdf`;
-      
+
       const s3Client = new S3Client({
         region: process.env.AWS_REGION,
         credentials: {
@@ -219,24 +286,30 @@ export class BrandbookService {
         },
       });
 
-      this.logger.log(`Uploading PDF to S3 bucket: ${process.env.S3_BUCKET_NAME}`);
-      
+      this.logger.log(
+        `Uploading PDF to S3 bucket: ${process.env.S3_BUCKET_NAME}`,
+      );
+
       await s3Client.send(
         new PutObjectCommand({
           Bucket: process.env.S3_BUCKET_NAME,
           Key: `pdfs/${filename}`,
           Body: pdfBuffer,
           ContentType: 'application/pdf',
-        })
+        }),
       );
 
       const getObjectCommand = new GetObjectCommand({
         Bucket: process.env.S3_BUCKET_NAME,
         Key: `pdfs/${filename}`,
       });
-      
-      pdfUrl = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 24 * 60 * 60 });
-      this.logger.log(`PDF uploaded to S3. Pre-signed URL generated (24h expiration): ${pdfUrl}`);
+
+      pdfUrl = await getSignedUrl(s3Client, getObjectCommand, {
+        expiresIn: 24 * 60 * 60,
+      });
+      this.logger.log(
+        `PDF uploaded to S3. Pre-signed URL generated (24h expiration): ${pdfUrl}`,
+      );
     } catch (uploadError) {
       this.logger.error(
         `Failed to upload PDF to S3 for brandbook ID: ${createdBrandbook.id}`,
@@ -248,7 +321,7 @@ export class BrandbookService {
     try {
       const updatedBrandbook = await this.prisma.brandbook.update({
         where: { id: createdBrandbook.id },
-        data: { pdfUrl: pdfUrl }
+        data: { pdfUrl: pdfUrl },
       });
       this.logger.log(
         `Successfully updated brandbook ID: ${createdBrandbook.id} with PDF URL path.`,
@@ -493,12 +566,34 @@ export class BrandbookService {
     ) {
       try {
         if (Array.isArray(brandbook.brandColorsJson)) {
-          parsedColors = brandbook.brandColorsJson.filter(
-            (c: any) =>
-              c && typeof c.name === 'string' && typeof c.value === 'string',
-          ) as { name: string; value: string; usageNote?: string }[];
+          parsedColors = brandbook.brandColorsJson.map(
+            (c: any, index: number) => {
+              if (!c) c = {};
+
+              const name =
+                c.name && typeof c.name === 'string' && c.name.trim() !== ''
+                  ? c.name
+                  : `Color ${index + 1}`;
+
+              const value =
+                c.value &&
+                typeof c.value === 'string' &&
+                /^#[0-9A-Fa-f]{6}$/.test(c.value)
+                  ? c.value
+                  : this.getDefaultColorByIndex(index);
+
+              return {
+                name,
+                value,
+                usageNote:
+                  c.usageNote && typeof c.usageNote === 'string'
+                    ? c.usageNote
+                    : undefined,
+              };
+            },
+          );
           this.logger.debug(
-            `Parsed ${parsedColors.length} brand colors for PDF.`,
+            `Prepared ${parsedColors.length} brand colors for PDF with defaults as needed.`,
           );
         }
       } catch (e) {
@@ -506,11 +601,47 @@ export class BrandbookService {
           `Failed to parse brandColorsJson for brandbook ${id}.`,
           e,
         );
+        parsedColors = [{ name: 'Primary', value: '#000000' }];
       }
     } else {
       this.logger.warn(
         `No brandColorsJson found or invalid type for brandbook ${id}.`,
       );
+      parsedColors = [{ name: 'Primary', value: '#000000' }];
+    }
+
+    // Generate an AI-enhanced introduction
+    let enhancedIntroduction = brandbook.companyDescription || '';
+    try {
+      const introInput = {
+        companyName: brandbook.companyName,
+        companyDescription: brandbook.companyDescription,
+        industry: brandbook.industry,
+        targetAudience: brandbook.targetAudience,
+        brandPersonalityKeywords: brandbook.brandPersonalityKeywords,
+        visualStyleKeywords: brandbook.visualStyleKeywords,
+        toneOfVoice: brandbook.toneOfVoice,
+        missionStatement: brandbook.missionStatement,
+        visionStatement: brandbook.visionStatement,
+        tagline: brandbook.tagline,
+      };
+
+      this.logger.log(
+        `Generating enhanced introduction for ${brandbook.companyName}`,
+      );
+      const enhancedContent =
+        await this.aiContentService.generateEnhancedIntroduction(introInput);
+      enhancedIntroduction = enhancedContent.enhancedIntroduction;
+      this.logger.log(
+        `Successfully generated enhanced introduction for brandbook ID: ${id}`,
+      );
+    } catch (introError) {
+      this.logger.error(
+        `Failed to generate enhanced introduction for brandbook ID: ${id}. Using original description.`,
+        introError,
+      );
+      // Fall back to the original description or empty string
+      enhancedIntroduction = brandbook.companyDescription || '';
     }
 
     const pdfData = {
@@ -522,6 +653,9 @@ export class BrandbookService {
         day: 'numeric',
       }),
       currentYear: new Date().getFullYear(),
+      enhancedIntroduction,
+      colorPaletteDescription:
+        "These colors form the foundation of our brand's visual identity. When used consistently, they help establish brand recognition across all touchpoints. The primary colors should dominate your designs, with secondary and accent colors used for highlights, backgrounds, and to create visual interest. Always ensure sufficient contrast between text and background colors for optimal readability.",
     };
     delete (pdfData as any).brandColorsJson;
     delete (pdfData as any).generatedJson;
@@ -637,5 +771,17 @@ export class BrandbookService {
       `PDF LOCAL regeneration completed for brandbook ${id}. New URL path: ${result.pdfUrl}`,
     );
     return result;
+  }
+
+  private getDefaultColorByIndex(index: number): string {
+    const defaultColors = [
+      '#000000', // Black (Primary)
+      '#4A4A4A', // Dark Gray (Secondary)
+      '#007BFF', // Blue (Accent)
+      '#28A745', // Green (Success)
+      '#DC3545', // Red (Warning)
+    ];
+
+    return index < defaultColors.length ? defaultColors[index] : '#CCCCCC';
   }
 }

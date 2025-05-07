@@ -48,6 +48,23 @@ export interface CoreContentOutput {
   visionStatement: string;
 }
 
+export interface EnhancedIntroductionInput {
+  companyName: string;
+  companyDescription?: string;
+  industry?: string;
+  targetAudience?: string;
+  brandPersonalityKeywords?: string;
+  visualStyleKeywords?: string;
+  toneOfVoice?: string;
+  missionStatement?: string;
+  visionStatement?: string;
+  tagline?: string;
+}
+
+export interface EnhancedIntroductionOutput {
+  enhancedIntroduction: string;
+}
+
 @Injectable()
 export class AIContentService {
   private readonly logger = new Logger(AIContentService.name);
@@ -56,7 +73,7 @@ export class AIContentService {
   constructor(
     private readonly configService: ConfigService,
     private readonly geminiService: GeminiService,
-  ) { }
+  ) {}
 
   async generateBrandContent(
     companyName: string,
@@ -447,10 +464,10 @@ Make all content professional, modern, and specific to the ${industry} industry.
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
       ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
       : { r: 0, g: 0, b: 0 };
   }
 
@@ -720,5 +737,131 @@ Make all content professional, modern, and specific to the ${industry} industry.
           `Default Vision (API Error) for ${input.companyName}`,
       };
     }
+  }
+
+  /**
+   * Generate an enhanced, professional introduction for a brand
+   * This combines user-provided inputs into a cohesive, polished introduction
+   */
+  async generateEnhancedIntroduction(
+    input: EnhancedIntroductionInput,
+  ): Promise<EnhancedIntroductionOutput> {
+    this.logger.log(
+      `Generating enhanced introduction for ${input.companyName}`,
+    );
+    const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
+    if (!apiKey) {
+      this.logger.error('Deepseek API key not configured.');
+      throw new Error('AI service configuration error.');
+    }
+
+    try {
+      // Construct a comprehensive prompt
+      const promptParts: string[] = [
+        `Create a professional, compelling introduction for the brand book of "${input.companyName}".`,
+        `Craft a polished, engaging 2-3 paragraph introduction that incorporates the following brand elements:`,
+
+        // Add available information
+        input.companyDescription
+          ? `- Company Description: ${input.companyDescription}`
+          : '',
+        input.industry ? `- Industry: ${input.industry}` : '',
+        input.targetAudience
+          ? `- Target Audience: ${input.targetAudience}`
+          : '',
+        input.brandPersonalityKeywords
+          ? `- Brand Personality: ${input.brandPersonalityKeywords}`
+          : '',
+        input.visualStyleKeywords
+          ? `- Visual Style: ${input.visualStyleKeywords}`
+          : '',
+        input.toneOfVoice ? `- Tone of Voice: ${input.toneOfVoice}` : '',
+        input.missionStatement
+          ? `- Mission Statement: ${input.missionStatement}`
+          : '',
+        input.visionStatement
+          ? `- Vision Statement: ${input.visionStatement}`
+          : '',
+        input.tagline ? `- Tagline: ${input.tagline}` : '',
+
+        `The introduction should:`,
+        `1. Capture the essence and purpose of the brand`,
+        `2. Explain why this brand book was created and how it should be used`,
+        `3. Set the tone for the rest of the brand guidelines`,
+        `4. Be professional yet engaging, reflecting the brand's personality`,
+        `5. Be clear and concise (about 150-200 words total)`,
+
+        `Return ONLY the introduction text with no additional formatting, explanations, or JSON structure.`,
+      ].filter(Boolean); // Remove empty strings
+
+      const prompt = promptParts.join('\n');
+
+      const response = await axios.post(
+        'https://api.deepseek.com/v1/chat/completions',
+        {
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a professional brand strategist with expertise in creating compelling brand narratives. Write in a polished, professional tone. Do not use placeholder text or include any meta instructions.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 600,
+          presence_penalty: 0,
+          frequency_penalty: 0,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          timeout: this.API_TIMEOUT,
+        },
+      );
+
+      // Extract the AI-generated introduction
+      const enhancedIntroduction =
+        response.data.choices[0].message.content.trim();
+
+      // Log success and return
+      this.logger.log(
+        `Successfully generated enhanced introduction for ${input.companyName}`,
+      );
+      return { enhancedIntroduction };
+    } catch (error) {
+      // Log error and return a fallback introduction
+      this.logger.error(
+        `Error generating enhanced introduction: ${error.message}`,
+      );
+      return {
+        enhancedIntroduction: this.getDefaultIntroduction(input),
+      };
+    }
+  }
+
+  /**
+   * Generate a fallback introduction when the AI call fails
+   */
+  private getDefaultIntroduction(input: EnhancedIntroductionInput): string {
+    const { companyName, industry, companyDescription, tagline } = input;
+
+    return `Welcome to the ${companyName} Brand Book, your comprehensive guide to our brand identity and visual language. ${
+      tagline ? `As captured in our tagline, "${tagline}", ` : ''
+    }we strive to ${
+      companyDescription
+        ? companyDescription
+            .toLowerCase()
+            .replace(/^we /i, '')
+            .replace(/\.$/, '')
+        : `deliver excellence in the ${industry || 'industry'}`
+    }.
+    
+    This document outlines the core elements of our brand, including our mission, vision, visual identity, and communication guidelines. It serves as the definitive resource for anyone creating materials or communications on behalf of ${companyName}. By following these guidelines consistently, we ensure our brand remains recognizable, trustworthy, and aligned with our values across all touchpoints.`;
   }
 }
