@@ -23,6 +23,7 @@ import { TemplateService } from './services/template.service';
 import { BrandBookPdfGeneratorService } from './services/brandbook-pdf-generator.service';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class BrandbookService {
@@ -37,6 +38,24 @@ export class BrandbookService {
     private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
   ) {
     this.logger = new Logger(BrandbookService.name);
+  }
+
+  // Helper method to generate QR code as data URL
+  private async generateQRCodeDataURL(websiteUrl: string): Promise<string> {
+    try {
+      // Generate QR code as data URL (base64 encoded)
+      return await QRCode.toDataURL(websiteUrl, {
+        errorCorrectionLevel: 'H',
+        margin: 1,
+        width: 300,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate QR code for website: ${websiteUrl}`,
+        error,
+      );
+      return '';
+    }
   }
 
   async create(
@@ -204,6 +223,24 @@ export class BrandbookService {
         enhancedIntroduction = createdBrandbook.companyDescription || '';
       }
 
+      // Generate QR Code for website if available
+      let websiteQrCodeUrl = '';
+      if (createdBrandbook.contactWebsite) {
+        try {
+          websiteQrCodeUrl = await this.generateQRCodeDataURL(
+            createdBrandbook.contactWebsite,
+          );
+          this.logger.log(
+            `Generated QR code for website: ${createdBrandbook.contactWebsite}`,
+          );
+        } catch (qrError) {
+          this.logger.error(
+            `Failed to generate QR code for website: ${createdBrandbook.contactWebsite}`,
+            qrError,
+          );
+        }
+      }
+
       const pdfData = {
         ...createdBrandbook,
         brandColors: parsedColors,
@@ -216,6 +253,7 @@ export class BrandbookService {
         enhancedIntroduction,
         colorPaletteDescription:
           "These colors form the foundation of our brand's visual identity. When used consistently, they help establish brand recognition across all touchpoints. The primary colors should dominate your designs, with secondary and accent colors used for highlights, backgrounds, and to create visual interest. Always ensure sufficient contrast between text and background colors for optimal readability.",
+        websiteQrCodeUrl,
       };
       delete (pdfData as any).brandColorsJson;
       delete (pdfData as any).generatedJson;
@@ -565,6 +603,24 @@ export class BrandbookService {
       enhancedIntroduction = brandbook.companyDescription || '';
     }
 
+    // Generate QR Code for website if available
+    let websiteQrCodeUrl = '';
+    if (brandbook.contactWebsite) {
+      try {
+        websiteQrCodeUrl = await this.generateQRCodeDataURL(
+          brandbook.contactWebsite,
+        );
+        this.logger.log(
+          `Generated QR code for website: ${brandbook.contactWebsite}`,
+        );
+      } catch (qrError) {
+        this.logger.error(
+          `Failed to generate QR code for website: ${brandbook.contactWebsite}`,
+          qrError,
+        );
+      }
+    }
+
     const pdfData = {
       ...brandbook,
       brandColors: parsedColors,
@@ -577,6 +633,7 @@ export class BrandbookService {
       enhancedIntroduction,
       colorPaletteDescription:
         "These colors form the foundation of our brand's visual identity. When used consistently, they help establish brand recognition across all touchpoints. The primary colors should dominate your designs, with secondary and accent colors used for highlights, backgrounds, and to create visual interest. Always ensure sufficient contrast between text and background colors for optimal readability.",
+      websiteQrCodeUrl,
     };
     delete (pdfData as any).brandColorsJson;
     delete (pdfData as any).generatedJson;

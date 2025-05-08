@@ -249,20 +249,24 @@
       .color-page .color-grid {
         display: flex;
         flex-direction: row;
-        justify-content: space-between;
-        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 40px;
         margin-top: 60px;
+        width: 100%;
       }
       .color-page .color-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        width: 120px;
+        width: 100px;
       }
       .color-page .color-swatch {
-        width: 120px;
-        height: 120px;
+        width: 100px;
+        height: 100px;
         margin-bottom: 15px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       }
       .color-page .color-hex {
         font-family: monospace;
@@ -396,16 +400,20 @@
            line-height: 1.6;
         }
       .contact-page .qr-code-container {
-           margin-top: auto; /* Push to bottom */
-           padding-top: 20mm;
+           position: absolute;
+           top: 30mm;
+           right: 20mm;
            text-align: center;
+           width: 120px;
       }
        .contact-page .qr-code-container img {
-           max-width: 40mm;
-           max-height: 40mm;
-           border: 5px solid #EFFF76; /* Accent border */
-           padding: 5px;
+           width: 120px;
+           height: 120px;
+           border: 1px solid #EEEEEE;
+           padding: 10px;
            background: white;
+           border-radius: 4px;
+           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
        }
         .contact-page .qr-code-container p {
             font-size: 10px;
@@ -712,15 +720,12 @@
           {{/if}}
         </div>
 
-        <!-- Optional QR Code Placeholder -->
-        <!-- 
-            {{#if contactQrCodeUrl}}
-            <div class="qr-code-container">
-                 <img src="{{contactQrCodeUrl}}" alt="Contact QR Code">
-                 <p>Scan for contact details</p>
-            </div>
-             {{/if}}
-            -->
+        {{#if contactWebsite}}
+          <div class='qr-code-container'>
+            <img src='{{websiteQrCodeUrl}}' alt='Website QR Code' />
+            <p>Scan to visit our website</p>
+          </div>
+        {{/if}}
 
       </div>
       <div class='page-footer'>
