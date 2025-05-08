@@ -66,7 +66,6 @@ export class BrandbookController {
         throw new BadRequestException('Brandbook ID is required');
       }
 
-      // Safely extract user ID with type checking
       const user = req.user as { id: string } | undefined;
 
       if (!user?.id) {
