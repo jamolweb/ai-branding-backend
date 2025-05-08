@@ -73,7 +73,7 @@ export class AIContentService {
   constructor(
     private readonly configService: ConfigService,
     private readonly geminiService: GeminiService,
-  ) {}
+  ) { }
 
   async generateBrandContent(
     companyName: string,
@@ -389,19 +389,15 @@ Make all content professional, modern, and specific to the ${industry} industry.
       const rawContent = response.data.choices[0].message.content.trim();
       let jsonContent = rawContent;
 
-      // Updated regex to find content between ```json and ```
       const jsonMatch = rawContent.match(/```json\s*([\s\S]+?)\s*```/);
       if (jsonMatch && jsonMatch[1]) {
         jsonContent = jsonMatch[1].trim();
-        this.logger.debug('Extracted JSON content from markdown fences.');
       } else {
-        // Fallback attempt: If no fences, assume the whole string might be JSON (or fail parsing)
         this.logger.debug(
           'No markdown fences detected, attempting to parse raw content.',
         );
       }
 
-      this.logger.debug(`Attempting to parse content: ${jsonContent}`);
 
       try {
         const colors = JSON.parse(jsonContent);
@@ -410,12 +406,11 @@ Make all content professional, modern, and specific to the ${industry} industry.
           colors.length !== 5 ||
           !colors.every((color) => /^#[0-9A-Fa-f]{6}$/.test(color))
         ) {
-          // If the response is not in the expected format, return a default palette
           return [
             primaryColor,
-            this.adjustHue(primaryColor, 180), // Complementary
-            this.adjustHue(primaryColor, 120), // Accent 1
-            this.adjustHue(primaryColor, -120), // Accent 2
+            this.adjustHue(primaryColor, 180),
+            this.adjustHue(primaryColor, 120),
+            this.adjustHue(primaryColor, -120),
             '#F5F5F5', // Neutral
           ];
         }
@@ -464,10 +459,10 @@ Make all content professional, modern, and specific to the ${industry} industry.
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
       ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16),
-        }
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
       : { r: 0, g: 0, b: 0 };
   }
 
@@ -594,7 +589,6 @@ Make all content professional, modern, and specific to the ${industry} industry.
   async generateCoreContent(
     input: CoreContentInput,
   ): Promise<CoreContentOutput> {
-    this.logger.log(`Generating core content for ${input.companyName}`);
     const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
     if (!apiKey) {
       this.logger.error('Deepseek API key not configured.');
@@ -606,9 +600,6 @@ Make all content professional, modern, and specific to the ${industry} industry.
 
     // If both are provided, return them directly
     if (!missionToGenerate && !visionToGenerate) {
-      this.logger.log(
-        'Mission and Vision provided by user, skipping generation.',
-      );
       return {
         missionStatement: input.providedMission!,
         visionStatement: input.providedVision!,
@@ -654,7 +645,6 @@ Make all content professional, modern, and specific to the ${industry} industry.
     }
 
     const fullPrompt = promptParts.join('\n');
-    this.logger.debug(`Constructed AI prompt: ${fullPrompt}`);
 
     try {
       const response = await axios.post(
@@ -688,9 +678,7 @@ Make all content professional, modern, and specific to the ${industry} industry.
       let generatedJson: any;
       try {
         const responseContent = response.data.choices[0].message.content.trim();
-        this.logger.debug(`Raw AI response content: ${responseContent}`);
         generatedJson = JSON.parse(responseContent);
-        this.logger.debug('Parsed AI response JSON:', generatedJson);
       } catch (parseError) {
         this.logger.error(
           'Error parsing core content AI response:',
@@ -717,10 +705,6 @@ Make all content professional, modern, and specific to the ${industry} industry.
           `Failed to generate vision for ${input.companyName}`,
       };
 
-      this.logger.log(
-        'Successfully generated/retrieved core content.',
-        finalOutput,
-      );
       return finalOutput;
     } catch (error) {
       this.logger.error(
@@ -746,9 +730,6 @@ Make all content professional, modern, and specific to the ${industry} industry.
   async generateEnhancedIntroduction(
     input: EnhancedIntroductionInput,
   ): Promise<EnhancedIntroductionOutput> {
-    this.logger.log(
-      `Generating enhanced introduction for ${input.companyName}`,
-    );
     const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
     if (!apiKey) {
       this.logger.error('Deepseek API key not configured.');
@@ -828,11 +809,6 @@ Make all content professional, modern, and specific to the ${industry} industry.
       // Extract the AI-generated introduction
       const enhancedIntroduction =
         response.data.choices[0].message.content.trim();
-
-      // Log success and return
-      this.logger.log(
-        `Successfully generated enhanced introduction for ${input.companyName}`,
-      );
       return { enhancedIntroduction };
     } catch (error) {
       // Log error and return a fallback introduction
@@ -851,16 +827,14 @@ Make all content professional, modern, and specific to the ${industry} industry.
   private getDefaultIntroduction(input: EnhancedIntroductionInput): string {
     const { companyName, industry, companyDescription, tagline } = input;
 
-    return `Welcome to the ${companyName} Brand Book, your comprehensive guide to our brand identity and visual language. ${
-      tagline ? `As captured in our tagline, "${tagline}", ` : ''
-    }we strive to ${
-      companyDescription
+    return `Welcome to the ${companyName} Brand Book, your comprehensive guide to our brand identity and visual language. ${tagline ? `As captured in our tagline, "${tagline}", ` : ''
+      }we strive to ${companyDescription
         ? companyDescription
-            .toLowerCase()
-            .replace(/^we /i, '')
-            .replace(/\.$/, '')
+          .toLowerCase()
+          .replace(/^we /i, '')
+          .replace(/\.$/, '')
         : `deliver excellence in the ${industry || 'industry'}`
-    }.
+      }.
     
     This document outlines the core elements of our brand, including our mission, vision, visual identity, and communication guidelines. It serves as the definitive resource for anyone creating materials or communications on behalf of ${companyName}. By following these guidelines consistently, we ensure our brand remains recognizable, trustworthy, and aligned with our values across all touchpoints.`;
   }

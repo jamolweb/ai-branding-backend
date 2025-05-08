@@ -44,17 +44,11 @@ export class BrandbookService {
     logoFile: Express.Multer.File,
     userId: string,
   ): Promise<Brandbook> {
-    this.logger.log(
-      `Starting brandbook creation for user ${userId} and company ${data.companyName}`,
-    );
 
     let logoUrl: string | null = null;
     try {
-      this.logger.debug('Uploading logo...');
       logoUrl = await this.cloudinaryService.uploadLogo(logoFile);
-      this.logger.debug(`Logo uploaded successfully: ${logoUrl}`);
     } catch (error) {
-      this.logger.error('Failed to upload logo to Cloudinary', error);
       throw new BadRequestException('Failed to upload logo file.');
     }
 
@@ -69,16 +63,11 @@ export class BrandbookService {
       providedMission: data.missionStatement,
       providedVision: data.visionStatement,
     };
-    this.logger.debug('Prepared data for AI content generation:', aiInputData);
 
     let generatedContent: CoreContentOutput;
     try {
       generatedContent =
         await this.aiContentService.generateCoreContent(aiInputData);
-      this.logger.log(
-        'Successfully retrieved/generated core content:',
-        generatedContent,
-      );
     } catch (aiError) {
       this.logger.error('AI Content Generation failed:', aiError);
       generatedContent = {
@@ -116,16 +105,11 @@ export class BrandbookService {
       contactAddress: data.contactAddress,
     };
 
-    this.logger.debug('Prepared data for Prisma create:', prismaCreateData);
-
     let createdBrandbook: Brandbook;
     try {
       createdBrandbook = await this.prisma.brandbook.create({
         data: { ...prismaCreateData, user: { connect: { id: userId } } },
       });
-      this.logger.log(
-        `Brandbook created successfully with ID: ${createdBrandbook.id}`,
-      );
     } catch (error) {
       this.logger.error('Error saving brandbook to database', error);
       if (logoUrl) {
@@ -133,9 +117,6 @@ export class BrandbookService {
           const publicId = this.getCloudinaryPublicId(logoUrl);
           if (publicId) {
             await this.cloudinaryService.deleteFile(publicId);
-            this.logger.log(
-              `Cleaned up uploaded logo (${publicId}) after DB error.`,
-            );
           }
         } catch (cleanupError) {
           this.logger.error(
@@ -154,10 +135,6 @@ export class BrandbookService {
 
     let pdfBuffer: Buffer;
     try {
-      this.logger.log(
-        `Preparing data for TEMPLATE PDF generation for brandbook ID: ${createdBrandbook.id}`,
-      );
-
       let parsedColors: { name: string; value: string; usageNote?: string }[] =
         [];
       if (
@@ -177,8 +154,8 @@ export class BrandbookService {
 
                 const value =
                   c.value &&
-                  typeof c.value === 'string' &&
-                  /^#[0-9A-Fa-f]{6}$/.test(c.value)
+                    typeof c.value === 'string' &&
+                    /^#[0-9A-Fa-f]{6}$/.test(c.value)
                     ? c.value
                     : this.getDefaultColorByIndex(index);
 
@@ -191,9 +168,6 @@ export class BrandbookService {
                       : undefined,
                 };
               },
-            );
-            this.logger.debug(
-              `Prepared ${parsedColors.length} brand colors for PDF with defaults as needed.`,
             );
           }
         } catch (e) {
@@ -218,15 +192,9 @@ export class BrandbookService {
           tagline: createdBrandbook.tagline,
         };
 
-        this.logger.log(
-          `Generating enhanced introduction for ${createdBrandbook.companyName}`,
-        );
         const enhancedContent =
           await this.aiContentService.generateEnhancedIntroduction(introInput);
         enhancedIntroduction = enhancedContent.enhancedIntroduction;
-        this.logger.log(
-          `Successfully generated enhanced introduction for brandbook ID: ${createdBrandbook.id}`,
-        );
       } catch (introError) {
         this.logger.error(
           `Failed to generate enhanced introduction for brandbook ID: ${createdBrandbook.id}. Using original description.`,
@@ -251,16 +219,10 @@ export class BrandbookService {
       };
       delete (pdfData as any).brandColorsJson;
       delete (pdfData as any).generatedJson;
-      this.logger.debug(
-        `Prepared data for PDF template: ID ${createdBrandbook.id}`,
-      );
 
       pdfBuffer = await this.pdfService.generatePdfFromTemplate(
         'brandbook-template',
         pdfData,
-      );
-      this.logger.log(
-        `TEMPLATE PDF Buffer generated successfully for ${createdBrandbook.id}`,
       );
     } catch (pdfError) {
       this.logger.error(
@@ -286,10 +248,6 @@ export class BrandbookService {
         },
       });
 
-      this.logger.log(
-        `Uploading PDF to S3 bucket: ${process.env.S3_BUCKET_NAME}`,
-      );
-
       await s3Client.send(
         new PutObjectCommand({
           Bucket: process.env.S3_BUCKET_NAME,
@@ -307,9 +265,6 @@ export class BrandbookService {
       pdfUrl = await getSignedUrl(s3Client, getObjectCommand, {
         expiresIn: 24 * 60 * 60,
       });
-      this.logger.log(
-        `PDF uploaded to S3. Pre-signed URL generated (24h expiration): ${pdfUrl}`,
-      );
     } catch (uploadError) {
       this.logger.error(
         `Failed to upload PDF to S3 for brandbook ID: ${createdBrandbook.id}`,
@@ -323,9 +278,6 @@ export class BrandbookService {
         where: { id: createdBrandbook.id },
         data: { pdfUrl: pdfUrl },
       });
-      this.logger.log(
-        `Successfully updated brandbook ID: ${createdBrandbook.id} with PDF URL path.`,
-      );
       return updatedBrandbook;
     } catch (updateError) {
       this.logger.error(
@@ -353,15 +305,12 @@ export class BrandbookService {
   }
 
   async delete(id: string, userId: string): Promise<void> {
-    this.logger.debug(`Deleting brandbook: ${id} for user: ${userId}`);
     const brandbook = await this.findOne(id, userId);
-    this.logger.debug('Found brandbook for deletion:', brandbook);
 
     try {
       await this.prisma.brandbook.delete({
         where: { id },
       });
-      this.logger.debug('Successfully deleted brandbook from database');
 
       await this.cleanupCloudinaryFiles(brandbook);
     } catch (error) {
@@ -384,7 +333,6 @@ export class BrandbookService {
         const logoPublicId = this.getCloudinaryPublicId(brandbook.logoUrl);
         if (logoPublicId) {
           await this.cloudinaryService.deleteFile(logoPublicId);
-          this.logger.debug(`Deleted logo from Cloudinary: ${logoPublicId}`);
         }
       } catch (error) {
         this.logger.error('Error deleting logo from Cloudinary:', {
@@ -397,7 +345,6 @@ export class BrandbookService {
       try {
         const localPath = path.join(process.cwd(), 'public', brandbook.pdfUrl);
         await fs.unlink(localPath);
-        this.logger.debug(`Deleted local PDF file: ${localPath}`);
       } catch (localDeleteError) {
         if (localDeleteError.code !== 'ENOENT') {
           this.logger.error(
@@ -433,8 +380,6 @@ export class BrandbookService {
     logoFile: Express.Multer.File | null,
     userId: string,
   ): Promise<Brandbook> {
-    this.logger.debug(`Updating brandbook: ${id} for user: ${userId}`);
-
     const existingBrandbook = await this.findOne(id, userId);
 
     const updatePayload: Prisma.BrandbookUpdateInput = {};
@@ -477,11 +422,9 @@ export class BrandbookService {
 
     let newLogoUrl: string | null = null;
     if (logoFile) {
-      this.logger.debug('New logo provided, uploading...');
       try {
         newLogoUrl = await this.cloudinaryService.uploadLogo(logoFile);
         updatePayload.logoUrl = newLogoUrl;
-        this.logger.debug('New logo uploaded successfully:', newLogoUrl);
       } catch (uploadError) {
         this.logger.error(
           'Error uploading new logo during update:',
@@ -496,7 +439,6 @@ export class BrandbookService {
         where: { id },
         data: updatePayload,
       });
-      this.logger.debug(`Successfully updated brandbook: ${id}`);
 
       if (newLogoUrl && existingBrandbook.logoUrl) {
         const oldLogoPublicId = this.getCloudinaryPublicId(
@@ -505,10 +447,6 @@ export class BrandbookService {
         if (oldLogoPublicId) {
           try {
             await this.cloudinaryService.deleteFile(oldLogoPublicId);
-            this.logger.debug(
-              'Cleaned up old logo from Cloudinary:',
-              oldLogoPublicId,
-            );
           } catch (deleteError) {
             this.logger.error(
               'Error deleting old logo after update:',
@@ -530,9 +468,6 @@ export class BrandbookService {
         if (publicId) {
           try {
             await this.cloudinaryService.deleteFile(publicId);
-            this.logger.log(
-              `Cleaned up newly uploaded logo (${publicId}) after DB update error.`,
-            );
           } catch (cleanupError) {
             this.logger.error(
               'Failed to clean up new logo after DB update error',
@@ -551,12 +486,7 @@ export class BrandbookService {
   }
 
   async generatePdf(id: string, userId: string): Promise<{ pdfUrl: string }> {
-    this.logger.log(
-      `Initiating LOCAL PDF generation process for brandbook: ${id}, user: ${userId}`,
-    );
-
     const brandbook = await this.findOne(id, userId);
-    this.logger.debug(`Fetched brandbook data for PDF generation: ID ${id}`);
 
     let parsedColors: { name: string; value: string; usageNote?: string }[] =
       [];
@@ -577,8 +507,8 @@ export class BrandbookService {
 
               const value =
                 c.value &&
-                typeof c.value === 'string' &&
-                /^#[0-9A-Fa-f]{6}$/.test(c.value)
+                  typeof c.value === 'string' &&
+                  /^#[0-9A-Fa-f]{6}$/.test(c.value)
                   ? c.value
                   : this.getDefaultColorByIndex(index);
 
@@ -591,9 +521,6 @@ export class BrandbookService {
                     : undefined,
               };
             },
-          );
-          this.logger.debug(
-            `Prepared ${parsedColors.length} brand colors for PDF with defaults as needed.`,
           );
         }
       } catch (e) {
@@ -626,15 +553,9 @@ export class BrandbookService {
         tagline: brandbook.tagline,
       };
 
-      this.logger.log(
-        `Generating enhanced introduction for ${brandbook.companyName}`,
-      );
       const enhancedContent =
         await this.aiContentService.generateEnhancedIntroduction(introInput);
       enhancedIntroduction = enhancedContent.enhancedIntroduction;
-      this.logger.log(
-        `Successfully generated enhanced introduction for brandbook ID: ${id}`,
-      );
     } catch (introError) {
       this.logger.error(
         `Failed to generate enhanced introduction for brandbook ID: ${id}. Using original description.`,
@@ -660,17 +581,12 @@ export class BrandbookService {
     delete (pdfData as any).brandColorsJson;
     delete (pdfData as any).generatedJson;
 
-    this.logger.debug(`Prepared data for PDF template: ID ${id}`);
 
     let pdfBuffer: Buffer;
     try {
-      this.logger.log(`Calling PdfService to generate PDF from template...`);
       pdfBuffer = await this.pdfService.generatePdfFromTemplate(
         'brandbook-template',
         pdfData,
-      );
-      this.logger.log(
-        `PDF buffer generated successfully for brandbook ${id}. Size: ${pdfBuffer.length} bytes`,
       );
     } catch (error) {
       this.logger.error(
@@ -688,11 +604,9 @@ export class BrandbookService {
       const directoryPath = path.join(process.cwd(), 'public', 'pdfs');
       const filePath = path.join(directoryPath, filename);
 
-      this.logger.log(`Saving generated PDF locally to: ${filePath}`);
       await fs.mkdir(directoryPath, { recursive: true });
       await fs.writeFile(filePath, pdfBuffer);
       pdfUrl = `/pdfs/${filename}`;
-      this.logger.log(`PDF saved locally. URL path: ${pdfUrl}`);
 
       if (
         brandbook.pdfUrl &&
@@ -706,7 +620,6 @@ export class BrandbookService {
             brandbook.pdfUrl,
           );
           await fs.unlink(oldLocalPath);
-          this.logger.debug(`Cleaned up old local PDF: ${oldLocalPath}`);
         } catch (cleanupError) {
           if (cleanupError.code !== 'ENOENT') {
             this.logger.error(
@@ -724,16 +637,10 @@ export class BrandbookService {
     }
 
     try {
-      this.logger.log(
-        `Updating brandbook ${id} with new local PDF URL path...`,
-      );
       await this.prisma.brandbook.update({
         where: { id },
         data: { pdfUrl: pdfUrl },
       });
-      this.logger.log(
-        `Brandbook ${id} updated successfully with PDF URL path: ${pdfUrl}`,
-      );
     } catch (error) {
       this.logger.error(
         `Failed to update brandbook ${id} with PDF URL path:`,
@@ -763,13 +670,7 @@ export class BrandbookService {
     id: string,
     userId: string,
   ): Promise<{ pdfUrl: string }> {
-    this.logger.log(
-      `Initiating LOCAL PDF RE-generation for brandbook ID: ${id}, user: ${userId}`,
-    );
     const result = await this.generatePdf(id, userId);
-    this.logger.log(
-      `PDF LOCAL regeneration completed for brandbook ${id}. New URL path: ${result.pdfUrl}`,
-    );
     return result;
   }
 

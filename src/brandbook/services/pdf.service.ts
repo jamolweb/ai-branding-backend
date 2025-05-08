@@ -49,7 +49,6 @@ export class PdfService {
       return new Handlebars.SafeString(result);
     });
 
-    this.logger.log('Handlebars helpers registered: split, trim, multiline.');
   }
 
   async generatePdfSimple(html: string): Promise<Buffer> {
@@ -79,7 +78,6 @@ export class PdfService {
     templateName: string,
     data: any,
   ): Promise<Buffer> {
-    this.logger.log(`Generating PDF using template: ${templateName}`);
     let browser: puppeteer.Browser | null = null;
 
     try {
@@ -90,7 +88,6 @@ export class PdfService {
         'brandbook',
         `${templateName}.hbs`,
       );
-      this.logger.debug(`Reading template file: ${templatePath}`);
 
       const templateSource = await fs.readFile(templatePath, 'utf-8');
 
@@ -123,7 +120,6 @@ export class PdfService {
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
           <link href="${googleFontsUrl}" rel="stylesheet">
         `;
-        this.logger.debug(`Generated Google Fonts link: ${googleFontsUrl}`);
       }
       // --- End Font Links ---
 
@@ -139,9 +135,6 @@ export class PdfService {
 
       // Render HTML
       const html = compiledTemplate(data);
-      this.logger.debug(
-        `Rendered HTML from template ${templateName} with dynamic fonts.`,
-      );
 
       // Puppeteer launch and PDF generation (remains the same)
       browser = await puppeteer.launch({
@@ -159,9 +152,6 @@ export class PdfService {
         printBackground: true,
         margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
       });
-      this.logger.log(
-        `Successfully generated PDF buffer for template ${templateName}`,
-      );
       await page.close();
       await browser.close();
       browser = null;

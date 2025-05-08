@@ -16,7 +16,7 @@ import { ChatService } from './chat.service';
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService) { }
 
   private readonly logger = new Logger(ChatController.name);
 
@@ -26,8 +26,6 @@ export class ChatController {
     @Body() body: { sessionId?: string; message: string },
     @Res() res: Response,
   ) {
-    this.logger.log(`Starting chat stream for user ${userId} with message: ${body.message.substring(0, 50)}...`);
-    
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -46,8 +44,7 @@ export class ChatController {
         chunkCount++;
         res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
       }
-      
-      this.logger.log(`Chat stream completed for user ${userId}. Total chunks: ${chunkCount}`);
+
       if (chunkCount === 0) {
         this.logger.warn(`No chunks were streamed for user ${userId}`);
       }

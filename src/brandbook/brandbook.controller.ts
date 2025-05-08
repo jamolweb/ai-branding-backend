@@ -42,7 +42,7 @@ export class BrandbookController {
 
   constructor(
     private readonly brandbookService: BrandbookService,
-  ) {}
+  ) { }
 
   @Get()
   async getBrandbooks(@Req() req: Request) {
@@ -62,28 +62,20 @@ export class BrandbookController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteBrandbook(@Param('id') id: string, @Req() req: Request) {
     try {
-      this.logger.debug(`Delete request received for brandbook: ${id}`);
-      this.logger.debug('Request user object:', req.user);
-      this.logger.debug('Request headers:', req.headers);
-
       if (!id) {
         throw new BadRequestException('Brandbook ID is required');
       }
 
       // Safely extract user ID with type checking
       const user = req.user as { id: string } | undefined;
-      this.logger.debug('Extracted user:', user);
 
       if (!user?.id) {
-        this.logger.error('User ID not found in request');
         throw new UnauthorizedException('User not authenticated properly');
       }
 
       try {
         await this.brandbookService.delete(id, user.id);
-        this.logger.debug(`Successfully deleted brandbook with id: ${id}`);
       } catch (error) {
-        this.logger.error('Service error:', error);
         if (error instanceof NotFoundException) {
           throw error;
         }

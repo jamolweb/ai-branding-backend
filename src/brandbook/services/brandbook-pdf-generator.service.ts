@@ -48,7 +48,7 @@ export class BrandBookPdfGeneratorService {
     private readonly geminiService: GeminiService,
     private readonly aiContentService: AIContentService,
     private readonly httpService: HttpService,
-  ) {}
+  ) { }
 
   async generateBrandBook(configInput: BrandBookConfig): Promise<Buffer> {
     this.currentPage = 1;
@@ -61,14 +61,10 @@ export class BrandBookPdfGeneratorService {
       !config.coreValues ||
       !config.aiContent
     ) {
-      this.logger.log(
-        'Core content or aiContent missing, fetching from AIContentService...',
-      );
       const fetchedAiContent = await this.aiContentService.generateBrandContent(
         config.companyName,
         config.industry || 'technology',
       );
-      this.logger.log('Fetched AI Content:', fetchedAiContent);
 
       config = {
         ...config,
@@ -78,7 +74,6 @@ export class BrandBookPdfGeneratorService {
         coreValues: config.coreValues || fetchedAiContent.coreValues,
         aiContent: config.aiContent || fetchedAiContent,
       };
-      this.logger.debug('Merged config after AI fetch:', config);
     }
 
     if (!config.aiContent) {
@@ -223,23 +218,17 @@ export class BrandBookPdfGeneratorService {
 
     if (config.logoUrl) {
       try {
-        this.logger.debug(
-          `Attempting to download logo from: ${config.logoUrl}`,
-        );
         const response = await firstValueFrom(
           this.httpService.get(config.logoUrl, { responseType: 'arraybuffer' }),
         );
         const imageBuffer = Buffer.from(response.data);
-        this.logger.debug(
-          `Logo downloaded successfully (${imageBuffer.length} bytes)`,
-        );
 
         const logoY =
           contentY +
           (config.description
             ? doc.heightOfString(config.description, {
-                width: doc.page.width - 100,
-              }) + 20
+              width: doc.page.width - 100,
+            }) + 20
             : 0);
         const maxLogoWidth = 200;
         const maxLogoHeight = 150;
@@ -247,7 +236,6 @@ export class BrandBookPdfGeneratorService {
         doc.image(imageBuffer, 50, logoY, {
           fit: [maxLogoWidth, maxLogoHeight],
         });
-        this.logger.debug('Logo embedded into PDF.');
       } catch (error) {
         this.logger.error(
           `Failed to download or embed logo from ${config.logoUrl}`,
