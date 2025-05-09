@@ -15,7 +15,13 @@ import { TemplateService } from './services/template.service';
 import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [AuthModule, CloudinaryModule, GeminiModule, HttpModule, CommonModule],
+  imports: [
+    AuthModule,
+    CloudinaryModule,
+    GeminiModule,
+    HttpModule,
+    CommonModule,
+  ],
   controllers: [BrandbookController],
   providers: [
     BrandbookService,

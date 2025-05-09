@@ -34,6 +34,8 @@ import { BrandbookService } from './brandbook.service';
 import { CreateBrandbookDto } from './dto/create-brandbook.dto';
 import { UpdateBrandbookDto } from './dto/update-brandbook.dto';
 import { BrandBookPdfGeneratorService } from './services/brandbook-pdf-generator.service';
+import { GeminiService } from '../gemini/gemini.service';
+import { S3Service } from '../common/services/s3.service';
 
 @Controller('brandbook')
 @UseGuards(JwtAuthGuard)
@@ -42,7 +44,9 @@ export class BrandbookController {
 
   constructor(
     private readonly brandbookService: BrandbookService,
-  ) { }
+    private readonly s3Service: S3Service,
+    private readonly geminiService: GeminiService,
+  ) {}
 
   @Get()
   async getBrandbooks(@Req() req: Request) {
@@ -225,6 +229,31 @@ export class BrandbookController {
       return new StreamableFile(file);
     } catch (error) {
       throw new NotFoundException('PDF not found');
+    }
+  }
+
+  @Post('generate-logo')
+  @HttpCode(HttpStatus.OK)
+  async generateLogo(@Body() data: { prompt: string }, @Req() req: any) {
+    try {
+      this.logger.log(`Generating logo with prompt: ${data.prompt}`);
+
+      // Use the existing generateLogo method but only return the first image
+      const result = await this.geminiService.generateLogo(
+        data.prompt,
+        req.user.id,
+      );
+
+      // Return only the first image URL to keep it simple
+      const logoUrl = result.images[0];
+
+      return { logoUrl };
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate logo: ${error.message}`,
+        error.stack,
+      );
+      throw error;
     }
   }
 }

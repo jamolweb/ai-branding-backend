@@ -106,9 +106,9 @@ export class BrandbookService {
 
     const prismaCreateData: Prisma.BrandbookCreateInput = {
       user: { connect: { id: userId } },
-      companyName: data.companyName,
-      tagline: data.tagline,
-      industry: data.industry,
+        companyName: data.companyName,
+        tagline: data.tagline,
+        industry: data.industry,
       companyDescription: data.companyDescription,
       targetAudience: data.targetAudience,
       brandPersonalityKeywords: data.brandPersonalityKeywords,
@@ -340,11 +340,11 @@ export class BrandbookService {
   }
 
   private async cleanupCloudinaryFiles(brandbook: Brandbook) {
-    if (brandbook.logoUrl) {
-      try {
-        const logoPublicId = this.getCloudinaryPublicId(brandbook.logoUrl);
-        if (logoPublicId) {
-          await this.cloudinaryService.deleteFile(logoPublicId);
+      if (brandbook.logoUrl) {
+        try {
+          const logoPublicId = this.getCloudinaryPublicId(brandbook.logoUrl);
+          if (logoPublicId) {
+            await this.cloudinaryService.deleteFile(logoPublicId);
         }
       } catch (error) {
         this.logger.error('Error deleting logo from Cloudinary:', {
@@ -453,12 +453,12 @@ export class BrandbookService {
       });
 
       if (newLogoUrl && existingBrandbook.logoUrl) {
-        const oldLogoPublicId = this.getCloudinaryPublicId(
+            const oldLogoPublicId = this.getCloudinaryPublicId(
           existingBrandbook.logoUrl,
-        );
-        if (oldLogoPublicId) {
-          try {
-            await this.cloudinaryService.deleteFile(oldLogoPublicId);
+            );
+            if (oldLogoPublicId) {
+              try {
+                await this.cloudinaryService.deleteFile(oldLogoPublicId);
           } catch (deleteError) {
             this.logger.error(
               'Error deleting old logo after update:',
