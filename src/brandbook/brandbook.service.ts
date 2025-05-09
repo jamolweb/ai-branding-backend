@@ -10,6 +10,7 @@ import { Brandbook, Prisma } from '@prisma/client';
 import * as puppeteer from 'puppeteer';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { S3Service } from '../common/services/s3.service';
 import { CreateBrandbookDto } from './dto/create-brandbook.dto';
 import { UpdateBrandbookDto } from './dto/update-brandbook.dto';
 import {
@@ -36,6 +37,7 @@ export class BrandbookService {
     private readonly aiContentService: AIContentService,
     private readonly templateService: TemplateService,
     private readonly brandBookPdfGeneratorService: BrandBookPdfGeneratorService,
+    private readonly s3Service: S3Service,
   ) {
     this.logger = new Logger(BrandbookService.name);
   }
@@ -272,37 +274,8 @@ export class BrandbookService {
 
     let pdfUrl: string | null = null;
     try {
-      const { S3Client, PutObjectCommand, GetObjectCommand } = await import(
-        '@aws-sdk/client-s3'
-      );
-      const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
       const filename = `${createdBrandbook.id}_${createdBrandbook.companyName.replace(/\s+/g, '_')}_BrandBook.pdf`;
-
-      const s3Client = new S3Client({
-        region: process.env.AWS_REGION,
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-      });
-
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: `pdfs/${filename}`,
-          Body: pdfBuffer,
-          ContentType: 'application/pdf',
-        }),
-      );
-
-      const getObjectCommand = new GetObjectCommand({
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: `pdfs/${filename}`,
-      });
-
-      pdfUrl = await getSignedUrl(s3Client, getObjectCommand, {
-        expiresIn: 24 * 60 * 60,
-      });
+      pdfUrl = await this.s3Service.uploadPdf(pdfBuffer, filename);
     } catch (uploadError) {
       this.logger.error(
         `Failed to upload PDF to S3 for brandbook ID: ${createdBrandbook.id}`,
