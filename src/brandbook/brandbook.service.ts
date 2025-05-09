@@ -275,7 +275,8 @@ export class BrandbookService {
     let pdfUrl: string | null = null;
     try {
       const filename = `${createdBrandbook.id}_${createdBrandbook.companyName.replace(/\s+/g, '_')}_BrandBook.pdf`;
-      pdfUrl = await this.s3Service.uploadPdf(pdfBuffer, filename);
+      const { url } = await this.s3Service.uploadPdf(pdfBuffer, filename, true);
+      pdfUrl = url;
     } catch (uploadError) {
       this.logger.error(
         `Failed to upload PDF to S3 for brandbook ID: ${createdBrandbook.id}`,
